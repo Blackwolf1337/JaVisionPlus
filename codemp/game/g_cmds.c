@@ -24,6 +24,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "g_local.h"
 #include "bg_saga.h"
+#include "g_VISION.h"
 
 #include "ui/menudef.h"			// for the voice chats
 
@@ -3440,6 +3441,9 @@ void ClientCommand( int clientNum ) {
 	if ( strstr( cmd, "bot_" ) && AcceptBotCommand( cmd, ent ) )
 		return;
 	//end rww
+
+	if ( v_HandleCommands( ent, cmd ) )
+		return;
 
 	command = (command_t *)Q_LinearSearch( cmd, commands, numCommands, sizeof( commands[0] ), cmdcmp );
 	if ( !command )
