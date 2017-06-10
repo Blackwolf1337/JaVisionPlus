@@ -15,14 +15,12 @@
 #include "g_local.h"
 #include "g_VISION.h"
 
-static account_t *accounts = NULL;	//This shouldn't be modified.
-
 void AM_Login( gentity_t *ent ) {
-
+	trap->SendServerCommand( ent->s.number, "print \"Login recognized.\n\"" );
 }
 
 void AM_Logout( gentity_t *ent ) {
-
+	trap->SendServerCommand( ent->s.number, "print \"Logout recognized.\n\"" );
 }
 
 
@@ -35,8 +33,8 @@ static const size_t numVisionCommands = ARRAY_LEN( VisionCommands );
 // Ja++ CONTENT (HAS TO BE RECODED):
 
 //Author: Ja++ ?
-static int v_cmdcmp(const void *a, const void *b) {
-	return Q_stricmp((const char *)a, ((VisionCommand_t*)b)->cmd);
+static int v_cmdcmp( const void *a, const void *b ) {
+	return Q_stricmp( (const char *)a, ((VisionCommand_t*)b)->cmd );
 }
 
 

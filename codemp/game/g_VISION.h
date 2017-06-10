@@ -11,6 +11,15 @@
 // *																	   *
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 //
+// ____INCLUDED IN____
+// ..game/g_cmds.c
+// ..game/g_VISION_acchandler.c
+// ..game/g_VISION_account.c
+// ..game/g_VISION_cmds.c
+// ___________________
+//
+// Keep it tracked, preventing useless includes.
+// ___________________
 //
 // Admin data is saved in plain custom format (vision data) in <fs_homepath>/<fs_game>/admins.vd
 // Possible key encryption (AES 256)
@@ -55,6 +64,7 @@ typedef struct VisionPersistent_s {
 
 
 //Account data, shouldn't be touched unless needed to.
+//I am probably doing something wrong with the byte datatype, but we'll see...
 typedef struct account_s {
 	char		*v_User;		//
 	char		*v_Password;	//memory allocation on the fly
@@ -76,5 +86,10 @@ typedef struct VisionCommand_s {
 	qboolean	v_admin_authorization;
 } VisionCommand_t;
 
-
+//Main Mod Functions
 qboolean v_HandleCommands( gentity_t *ent, const char *cmd );
+//Side Functions
+void AM_Login( gentity_t *ent );
+void AM_Logout( gentity_t *ent );
+//Header access 
+static account_t *accounts = NULL;	//This shouldn't be modified.

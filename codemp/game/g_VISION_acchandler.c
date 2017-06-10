@@ -14,6 +14,3 @@
 
 #include "g_local.h"
 #include "g_VISION.h"
-
-static account_t *accounts = NULL;	//This shouldn't be modified.
-
