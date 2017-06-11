@@ -25,6 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // this file holds commands that can be executed by the server console, but not remote clients
 
 #include "g_local.h"
+#include "g_VISION.h"
 
 /*
 ==============================================================================
@@ -468,6 +469,31 @@ void Svcmd_Say_f( void ) {
 	trap->SendServerCommand( -1, va("print \"server: %s\n\"", text ) );
 }
 
+static void Svcmd_AccountAdd_f(void) {
+	char	argUser[MAX_TOKEN_CHARS] = { 0 },
+			argPass[MAX_TOKEN_CHARS] = { 0 },
+			argPrivs[MAX_TOKEN_CHARS] = { 0 },
+			argRank[MAX_TOKEN_CHARS] = { 0 },
+			argEffect[MAX_TOKEN_CHARS] = { 0 },
+			*argMsg = NULL;
+
+
+	if (trap->Argc() < 4) {
+		trap->Print("Syntax: addaccount <user> <pass> <privileges> <rank> <logineffect> <login message>\n");
+		return;
+	}
+
+	trap->Argv(1, argUser, sizeof(argUser));
+	trap->Argv(2, argPass, sizeof(argPass));
+	trap->Argv(3, argPrivs, sizeof(argPrivs));
+	trap->Argv(4, argRank, sizeof(argRank));
+	trap->Argv(5, argEffect, sizeof(argEffect));
+	argMsg = ConcatArgs(6);
+
+	v_Account_Create( argUser, argPass, argPrivs, argRank, argEffect, argMsg );
+	v_Write_Binary( qfalse );
+}
+
 typedef struct svcmd_s {
 	const char	*name;
 	void		(*func)(void);
@@ -479,6 +505,7 @@ int svcmdcmp( const void *a, const void *b ) {
 }
 
 svcmd_t svcmds[] = {
+	{ "addaccount",					Svcmd_AccountAdd_f,					qfalse },
 	{ "addbot",						Svcmd_AddBot_f,						qfalse },
 	{ "addip",						Svcmd_AddIP_f,						qfalse },
 	{ "botlist",					Svcmd_BotList_f,					qfalse },

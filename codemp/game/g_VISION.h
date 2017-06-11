@@ -13,6 +13,7 @@
 //
 // ____INCLUDED IN____
 // ..game/g_cmds.c
+// ..game/g_svcmds.c
 // ..game/g_VISION_acchandler.c
 // ..game/g_VISION_account.c
 // ..game/g_VISION_cmds.c
@@ -26,6 +27,17 @@
 // --- Definitions --- 
 
 #include "qcommon/q_shared.h"
+
+#define NUL 0x00
+#define SOH 0x01
+#define STX 0x02
+#define ETX 0x03
+#define EOF 0x1A
+#define FS	0x1C
+#define GS	0x1D
+#define LF	0x0A
+
+#define VISION_DATA "VisionData.vbin"
 
 //Copied from Ja++ old fork
 //Don't be mad ples, will be cleaned up.
@@ -66,14 +78,14 @@ typedef struct VisionPersistent_s {
 //Account data, shouldn't be touched unless needed to.
 //I am probably doing something wrong with the byte datatype, but we'll see...
 typedef struct account_s {
-	char		*v_User;		//
-	char		*v_Password;	//memory allocation on the fly
-	uint64_t	*v_privileges;	//hope i'll find another way around this.
-	byte		v_rank;
-	byte		v_loginEffect;
+	char		v_User[32];		//
+	char		v_Password[32];	//memory allocation on the fly
+	uint64_t	v_privileges;	//hope i'll find another way around this.
+	char		v_rank[3];
+	char		v_loginEffect[3];
 	char		v_loginMsg[128];
 	char		v_additionalInfo[MAX_STRING_CHARS];	//notes, reminders etc.
-	byte		v_banned;		//if the account is unavailable
+	char		v_banned[1];		//if the account is unavailable
 
 	struct account_s *next;		//Pointer to a new struct of a User
 } account_t;
@@ -87,7 +99,9 @@ typedef struct VisionCommand_s {
 } VisionCommand_t;
 
 //Main Mod Functions
+void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg );
 qboolean v_HandleCommands( gentity_t *ent, const char *cmd );
+void v_Write_Binary( qboolean silent );
 //Side Functions
 void AM_Login( gentity_t *ent );
 void AM_Logout( gentity_t *ent );
