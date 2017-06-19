@@ -490,8 +490,12 @@ static void Svcmd_AccountAdd_f(void) {
 	trap->Argv(5, argEffect, sizeof(argEffect));
 	argMsg = ConcatArgs(6);
 
-	v_Account_Create( argUser, argPass, argPrivs, argRank, argEffect, argMsg );
+	v_Account_Create( argUser, argPass, atoll( argPrivs ), argRank, argEffect, argMsg );
 	v_Write_Binary( qfalse );
+}
+
+static void Svcmd_Accread_f( void ) {
+	v_Read_Binary( qfalse );
 }
 
 typedef struct svcmd_s {
@@ -505,6 +509,7 @@ int svcmdcmp( const void *a, const void *b ) {
 }
 
 svcmd_t svcmds[] = {
+	{ "accread",					Svcmd_Accread_f,					qfalse },
 	{ "addaccount",					Svcmd_AccountAdd_f,					qfalse },
 	{ "addbot",						Svcmd_AddBot_f,						qfalse },
 	{ "addip",						Svcmd_AddIP_f,						qfalse },

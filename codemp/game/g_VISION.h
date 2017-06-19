@@ -32,12 +32,13 @@
 #define SOH 0x01
 #define STX 0x02
 #define ETX 0x03
-#define EOF 0x1A
+#define SUB 0x1A
 #define FS	0x1C
 #define GS	0x1D
 #define LF	0x0A
 
 #define VISION_DATA "VisionData.vbin"
+#define ACCOUNTSIZE	sizeof(account_t)
 
 //Copied from Ja++ old fork
 //Don't be mad ples, will be cleaned up.
@@ -85,10 +86,21 @@ typedef struct account_s {
 	char		v_loginEffect[3];
 	char		v_loginMsg[128];
 	char		v_additionalInfo[MAX_STRING_CHARS];	//notes, reminders etc.
-	char		v_banned[1];		//if the account is unavailable
+	char		v_banned[2];		//if the account is unavailable
 
 	struct account_s *next;		//Pointer to a new struct of a User
 } account_t;
+
+typedef struct accountBin_s {
+	char		bin_User[32];
+	char		bin_Password[32];
+	uint64_t	bin_privileges;
+	char		bin_rank[3];
+	char		bin_loginEffect[3];
+	char		bin_loginMsg[128];
+	char		bin_additionalInfo[MAX_STRING_CHARS];
+	char		bin_banned[2];
+} accountBin_t;
 
 //Commands unified with admin commands.
 typedef struct VisionCommand_s {
@@ -100,8 +112,10 @@ typedef struct VisionCommand_s {
 
 //Main Mod Functions
 void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg );
+void v_memfree_Accounts( void );
 qboolean v_HandleCommands( gentity_t *ent, const char *cmd );
 void v_Write_Binary( qboolean silent );
+void v_Read_Binary( qboolean silent );
 //Side Functions
 void AM_Login( gentity_t *ent );
 void AM_Logout( gentity_t *ent );

@@ -26,17 +26,17 @@ char signature[22] = {	SOH,  0x56, 0x49,
 						LF };
 
 char trailer[6] = { FS, LF,  ETX,
-					LF, EOF, NUL };
+					LF, SUB, NUL };
 
 void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg ) {
-	account_t *account = NULL;
+	account_t		*account	= NULL;
 
 	for ( account = accounts; account; account = account->next ) 
 	{
 		
 		if ( !strcmp( user, account->v_User ) ) {
 			//Overwrite
-			trap->Print("Overwriting existing admin. ");
+			trap->Print("Overwriting existing admin.\n");
 			/*trap->Print( "Overwriting account %s with: %s %s %llu %s %s %s\n",	user, account->v_User
 																					, account->v_Password
 																					, account->v_privileges
@@ -48,8 +48,8 @@ void v_Account_Create( char *user, char *password, uint64_t privileges, char *ra
 	}
 
 	if ( !account ) {
-		account = (account_t *)malloc( sizeof( account_t ) );
-		memset( account, 0, sizeof( account_t ) );
+		account = (account_t *)malloc( ACCOUNTSIZE );
+		memset( account, 0, ACCOUNTSIZE );
 		account->next = accounts;
 		accounts = account;
 	}
@@ -60,33 +60,132 @@ void v_Account_Create( char *user, char *password, uint64_t privileges, char *ra
 	Q_strncpyz( account->v_rank, rank, sizeof( account->v_rank ) );
 	Q_strncpyz( account->v_loginEffect, loginEffect, sizeof( account->v_loginEffect ) );
 	Q_strncpyz( account->v_loginMsg, loginMsg, sizeof( account->v_loginMsg ) );
+	Q_strncpyz( account->v_additionalInfo, "none", sizeof( account->v_additionalInfo ) );
+	Q_strncpyz( account->v_banned, "0",  sizeof( account->v_banned ) );
 
 	trap->Print( "Creating a new account at address 0x%p with size %zu \n", account, sizeof(account) );
+}
+
+void v_memfree_Accounts( void ) {
+	account_t *account = accounts;
+
+	while ( account )
+	{
+		account_t *next = account->next;
+
+		free( account );
+		account = next;
+	}
+
+	accounts = NULL;
 }
 
 void v_Write_Binary( qboolean silent ) {
 	FILE *pfile;
 	account_t *account = NULL;
+	accountBin_t *accountBin = NULL;
 
 	pfile = fopen( VISION_DATA, "wb" );
 
-	if (!pfile) {
+	if ( !pfile ) {
 		trap->Print( "Cannot open %s", VISION_DATA );
 		return;
 	}
 
-	if (!silent) {
+	if ( !silent ) {
 		Com_Printf( "Writing Binary > " VISION_DATA "\n" );
 	}
+	
+	fseek( pfile, 0, SEEK_SET );
+	fwrite( signature, sizeof( char ), sizeof( signature ), pfile );
 
-	fwrite( signature, sizeof( signature ), 1, pfile );
-
-	for (account = accounts; account; account = account->next)
+	for ( account = accounts; account; account = account->next )
 	{
-		fwrite( account, sizeof( account_t ), 1, pfile );
+		accountBin = account;
+		fwrite( accountBin, sizeof( char ), sizeof( accountBin_t ), pfile );
 	}
 
-	fwrite( trailer, sizeof(trailer), 1, pfile );
+	fwrite( trailer, sizeof( char ), sizeof( trailer ), pfile );
 
-	fclose(pfile);
+	fclose( pfile );
+}
+
+void v_Read_Binary( qboolean silent ) {
+	FILE *pfile;
+	account_t *account = NULL;
+	char *membuffer = NULL; //front-buffer
+	size_t fileSize;
+	size_t i;
+
+	v_memfree_Accounts();
+
+	pfile = fopen( VISION_DATA, "rb" );
+		
+	if (!pfile) {
+		trap->Print( "Cannot open %s\n", VISION_DATA );
+		return;
+	}
+
+	/*
+	signature	= 22 bytes
+	account		= 1240 bytes
+	trailer		= 6 bytes
+
+	([FILE]-signature-trailer)/account = amount of accounts
+
+	*/
+
+	fseek( pfile, 0, SEEK_SET );
+	membuffer = ( char *)malloc( sizeof( signature ) );				//Since we fread parses through the memory we gotta allocate some.
+	fread( membuffer, sizeof( char ), sizeof( signature ), pfile );	//fread stores the buffer into the membuffer.
+	
+	if ( !( memcmp( membuffer, signature, sizeof( signature ) ) ) )  {	//memcmp instead of strcmp, we're working with binary blocks not strings
+		trap->Print( "Signature seems to be OK.\n" );
+	}
+	else { 
+		trap->Print( "No signature.\n" ); 
+		return; 
+	}
+	
+	realloc( membuffer, sizeof( trailer ) );	//Realloc the block.
+	memset( membuffer, 0, sizeof( trailer ) );	//Make sure it's squeaky clean.
+
+	fseek( pfile, 0 - sizeof( trailer ), SEEK_END );				
+	fread( membuffer, sizeof( char ), sizeof( trailer ), pfile );
+
+	if ( !( memcmp( membuffer, trailer, sizeof( trailer ) ) ) ) {
+		trap->Print( "Trailer seems to be OK.\n" );
+	}
+	else { 
+		trap->Print( "No trailer.\n" );
+		return;
+	}
+		
+	fseek( pfile, 0, SEEK_END );
+	fileSize = ftell( pfile );
+	i = ( ( fileSize-sizeof( signature )-sizeof( trailer ) )/ACCOUNTSIZE );
+	fseek( pfile, sizeof( signature ), SEEK_SET );
+
+	for (int j = 1; j <= i; j++)
+	{
+		account = (account_t *)malloc( ACCOUNTSIZE );
+		memset( account, 0, sizeof( account_t ) );
+		fread( account, sizeof( char ),  sizeof( accountBin_t )*j, pfile );
+		account->next = accounts;
+		accounts = account;
+		trap->Print("%s %s %lld %s %s %s %s\n",	account->v_User, 
+												account->v_Password,
+												account->v_privileges,
+												account->v_rank,
+												account->v_loginMsg,
+												account->v_additionalInfo,
+												account->v_banned);
+	}
+
+	//free(membuffer);
+	fclose( pfile );
+
+	trap->Print( "OK.\n" );
+
+	//fread( trailer, sizeof( trailer ), 1, pfile );
 }
