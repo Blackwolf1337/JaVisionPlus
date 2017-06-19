@@ -84,6 +84,7 @@ void v_Write_Binary( qboolean silent ) {
 	FILE *pfile;
 	account_t *account = NULL;
 	accountBin_t *accountBin = NULL;
+	int i;
 
 	pfile = fopen( VISION_DATA, "wb" );
 
@@ -99,9 +100,10 @@ void v_Write_Binary( qboolean silent ) {
 	fseek( pfile, 0, SEEK_SET );
 	fwrite( signature, sizeof( char ), sizeof( signature ), pfile );
 
-	for ( account = accounts; account; account = account->next )
+	for ( account = accounts, i = 0; account; account = account->next, i++ )
 	{
 		accountBin = account;
+		fseek( pfile, sizeof( signature ) + ( sizeof( accountBin_t )*i ), SEEK_SET );
 		fwrite( accountBin, sizeof( char ), sizeof( accountBin_t ), pfile );
 	}
 
@@ -163,24 +165,25 @@ void v_Read_Binary( qboolean silent ) {
 		
 	fseek( pfile, 0, SEEK_END );
 	fileSize = ftell( pfile );
-	i = ( ( fileSize-sizeof( signature )-sizeof( trailer ) )/ACCOUNTSIZE );
+	i = ( ( fileSize-sizeof( signature )-sizeof( trailer ) ) / sizeof( accountBin_t ) );
 	fseek( pfile, sizeof( signature ), SEEK_SET );
 
 	for (int j = 1; j <= i; j++)
 	{
 		account = (account_t *)malloc( ACCOUNTSIZE );
 		memset( account, 0, sizeof( account_t ) );
-		fread( account, sizeof( char ),  sizeof( accountBin_t )*j, pfile );
+		fread( account, sizeof( char ),  sizeof( accountBin_t ), pfile );
 		account->next = accounts;
 		accounts = account;
-		trap->Print("%s %s %lld %s %s %s %s\n",	account->v_User, 
-												account->v_Password,
-												account->v_privileges,
-												account->v_rank,
-												account->v_loginMsg,
-												account->v_additionalInfo,
-												account->v_banned);
-	}
+		trap->Print( "%s %s %lld %s %s %s %s\n\tSIZE->%zu | %zd | %p | %d\n",	account->v_User, 
+																				account->v_Password,
+																				account->v_privileges,
+																				account->v_rank,
+																				account->v_loginMsg,
+																				account->v_additionalInfo,
+																				account->v_banned,
+																				account);
+		}
 
 	//free(membuffer);
 	fclose( pfile );
