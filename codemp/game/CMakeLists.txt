@@ -78,7 +78,6 @@ set(MPGameGameFiles
 	"${MPDir}/game/g_utils.c"
 	"${MPDir}/game/g_vehicles.c"
 	"${MPDir}/game/g_vehicleTurret.c"
-	"${MPDir}/game/g_VISION_acchandler.c"
 	"${MPDir}/game/g_VISION_account.c"
 	"${MPDir}/game/g_VISION_cmds.c"
 	"${MPDir}/game/g_weapon.c"

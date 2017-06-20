@@ -15,7 +15,9 @@
 #include "g_local.h"
 #include "g_VISION.h"
 
-
+/*
+I was too lazy to build the signature and trailer into the structure.
+*/
 char signature[22] = {	SOH,  0x56, 0x49,
 						0x53, 0x49, 0x4F,
 						0x4E, LF,	0x31,
@@ -28,6 +30,10 @@ char signature[22] = {	SOH,  0x56, 0x49,
 char trailer[6] = { FS, LF,  ETX,
 					LF, SUB, NUL };
 
+/*
+Author: Ja++, Raz0r(?)
+Desc..: Add an account (will be tweaked)
+*/
 void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg ) {
 	account_t		*account	= NULL;
 
@@ -66,6 +72,10 @@ void v_Account_Create( char *user, char *password, uint64_t privileges, char *ra
 	trap->Print( "Creating a new account at address 0x%p with size %zu \n", account, sizeof(account) );
 }
 
+/*
+Author: Ja++, Raz0r(?)
+Desc..: Free allocated accounts
+*/
 void v_memfree_Accounts( void ) {
 	account_t *account = accounts;
 
@@ -80,27 +90,34 @@ void v_memfree_Accounts( void ) {
 	accounts = NULL;
 }
 
+/*
+Author: Blackwolf
+Desc..: Write data in binary mode into VisionData.vbin [VISION_DATA]
+*/
 void v_Write_Binary( qboolean silent ) {
 	FILE *pfile;
-	account_t *account = NULL;
+	account_t	*account = NULL;
 	accountBin_t *accountBin = NULL;
-	int i;
+	int i = 0;
+
+	if ( !silent )
+		trap->Print( "Preparing to open %s\n", VISION_DATA );
 
 	pfile = fopen( VISION_DATA, "wb" );
 
 	if ( !pfile ) {
-		trap->Print( "Cannot open %s", VISION_DATA );
+		if( !silent )
+			trap->Print( "Cannot open %s\n", VISION_DATA );
 		return;
 	}
 
-	if ( !silent ) {
+	if ( !silent )
 		Com_Printf( "Writing Binary > " VISION_DATA "\n" );
-	}
 	
 	fseek( pfile, 0, SEEK_SET );
 	fwrite( signature, sizeof( char ), sizeof( signature ), pfile );
 
-	for ( account = accounts, i = 0; account; account = account->next, i++ )
+	for ( account = accounts; account; account = account->next, i++ )
 	{
 		accountBin = account;
 		fseek( pfile, sizeof( signature ) + ( sizeof( accountBin_t )*i ), SEEK_SET );
@@ -112,10 +129,15 @@ void v_Write_Binary( qboolean silent ) {
 	fclose( pfile );
 }
 
+
+/*
+Author: Blackwolf
+Desc..: Read data out of the Vision binary.
+*/
 void v_Read_Binary( qboolean silent ) {
 	FILE *pfile;
 	account_t *account = NULL;
-	char *membuffer = NULL; //front-buffer
+	char *membuffer = NULL; //temporary memoryblock buffer for the signature and trailer.
 	size_t fileSize;
 	size_t i;
 
@@ -123,72 +145,69 @@ void v_Read_Binary( qboolean silent ) {
 
 	pfile = fopen( VISION_DATA, "rb" );
 		
-	if (!pfile) {
+	if ( !pfile ) {
 		trap->Print( "Cannot open %s\n", VISION_DATA );
 		return;
 	}
 
 	/*
 	signature	= 22 bytes
-	account		= 1240 bytes
+	accountBin	= 1240 bytes
 	trailer		= 6 bytes
 
 	([FILE]-signature-trailer)/account = amount of accounts
 
 	*/
 
-	fseek( pfile, 0, SEEK_SET );
-	membuffer = ( char *)malloc( sizeof( signature ) );				//Since we fread parses through the memory we gotta allocate some.
-	fread( membuffer, sizeof( char ), sizeof( signature ), pfile );	//fread stores the buffer into the membuffer.
+	fseek( pfile, 0, SEEK_SET );									//set filepointer to the beginning of the file
+	membuffer = ( char *)malloc( sizeof( signature ) );
+	fread( membuffer, sizeof( char ), sizeof( signature ), pfile );	//store content into membuffer
 	
-	if ( !( memcmp( membuffer, signature, sizeof( signature ) ) ) )  {	//memcmp instead of strcmp, we're working with binary blocks not strings
-		trap->Print( "Signature seems to be OK.\n" );
-	}
-	else { 
-		trap->Print( "No signature.\n" ); 
-		return; 
-	}
-	
-	realloc( membuffer, sizeof( trailer ) );	//Realloc the block.
-	memset( membuffer, 0, sizeof( trailer ) );	//Make sure it's squeaky clean.
-
-	fseek( pfile, 0 - sizeof( trailer ), SEEK_END );				
-	fread( membuffer, sizeof( char ), sizeof( trailer ), pfile );
-
-	if ( !( memcmp( membuffer, trailer, sizeof( trailer ) ) ) ) {
-		trap->Print( "Trailer seems to be OK.\n" );
-	}
-	else { 
-		trap->Print( "No trailer.\n" );
+	if ( memcmp( membuffer, signature, sizeof( signature ) ) )  {	//memcmp instead of strcmp, we're working with binary blocks not strings	
+		if( !silent )
+			trap->Print("No signature.\n");
 		return;
-	}
+	} else if ( !silent ) { trap->Print( "Signature is fine.\n" );  }
+	
+	
+	realloc( membuffer, sizeof( trailer ) );						//Realloc the block.
+	memset( membuffer, 0, sizeof( trailer ) );						//Make sure it's squeaky clean. Zero it out.
+
+	fseek( pfile, 0 - sizeof( trailer ), SEEK_END );				//set filepointer to the end of the file
+	fread( membuffer, sizeof( char ), sizeof( trailer ), pfile );	//repeat step Line>142
+
+	if ( ( memcmp( membuffer, trailer, sizeof( trailer ) ) ) ) {
+		if( !silent )
+			trap->Print("No trailer.\n");
+		return;
+	} else if ( !silent ) { trap->Print( "Trailer is fine.\n" ); }
 		
 	fseek( pfile, 0, SEEK_END );
 	fileSize = ftell( pfile );
-	i = ( ( fileSize-sizeof( signature )-sizeof( trailer ) ) / sizeof( accountBin_t ) );
-	fseek( pfile, sizeof( signature ), SEEK_SET );
+	i = ( ( fileSize-sizeof( signature )-sizeof( trailer ) ) / sizeof( accountBin_t ) ); //calculate the amount of admins
+	fseek( pfile, sizeof( signature ), SEEK_SET );										 //set filepointer at the end of the signature header
 
-	for (int j = 1; j <= i; j++)
+	for ( int j = 1; j <= i; j++ )
 	{
 		account = (account_t *)malloc( ACCOUNTSIZE );
 		memset( account, 0, sizeof( account_t ) );
 		fread( account, sizeof( char ),  sizeof( accountBin_t ), pfile );
 		account->next = accounts;
 		accounts = account;
-		trap->Print( "%s %s %lld %s %s %s %s\n\tSIZE->%zu | %zd | %p | %d\n",	account->v_User, 
-																				account->v_Password,
-																				account->v_privileges,
-																				account->v_rank,
-																				account->v_loginMsg,
-																				account->v_additionalInfo,
-																				account->v_banned,
-																				account);
-		}
+		
+		if(!silent)
+			trap->Print( "%s %s %lld %s %s %s %s\n\tSIZE->%zu\n",	account->v_User, 
+																	account->v_Password,
+																	account->v_privileges,
+																	account->v_rank,
+																	account->v_loginMsg,
+																	account->v_additionalInfo,
+																	account->v_banned,
+																	account);
+	}
 
-	//free(membuffer);
 	fclose( pfile );
-
-	trap->Print( "OK.\n" );
-
-	//fread( trailer, sizeof( trailer ), 1, pfile );
+	
+	if( !silent )
+		trap->Print( "Success at parsing binaries.\n" );
 }
