@@ -144,8 +144,9 @@ Desktop.ini
 *.egg
 *.egg-info
 dist
-build
-build64
+buildx86
+buildx64
+x64
 eggs
 parts
 bin
