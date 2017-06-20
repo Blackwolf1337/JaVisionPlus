@@ -96,7 +96,7 @@ Desc..: Write data in binary mode into VisionData.vbin [VISION_DATA]
 */
 void v_Write_Binary( qboolean silent ) {
 	FILE *pfile;
-	account_t	*account = NULL;
+	account_t *account = NULL;
 	accountBin_t *accountBin = NULL;
 	int i = 0;
 

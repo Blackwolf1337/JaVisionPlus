@@ -44,7 +44,7 @@ extern vec3_t gPainPoint;
 //==================================================================
 
 // the "gameversion" client command will print this plus compile date
-#define	GAMEVERSION	"JaVision+"
+#define	GAMEVERSION	"JA+ Mod v2.6 B1+" //JaVision+
 
 #define SECURITY_LOG "security.log"
 
