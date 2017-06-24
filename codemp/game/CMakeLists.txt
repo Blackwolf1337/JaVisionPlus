@@ -80,6 +80,7 @@ set(MPGameGameFiles
 	"${MPDir}/game/g_vehicleTurret.c"
 	"${MPDir}/game/g_VISION_account.c"
 	"${MPDir}/game/g_VISION_cmds.c"
+	"${MPDir}/game/g_VISION_utils.c"
 	"${MPDir}/game/g_weapon.c"
 	"${MPDir}/game/NPC.c"
 	"${MPDir}/game/NPC_AI_Atst.c"

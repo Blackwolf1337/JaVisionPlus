@@ -37,6 +37,9 @@ typedef struct gclient_s gclient_t;
 //npc stuff
 #include "b_public.h"
 
+//VISION:
+#include "g_VISION.h"
+
 extern int gPainMOD;
 extern int gPainHitLoc;
 extern vec3_t gPainPoint;
@@ -505,6 +508,12 @@ typedef struct clientPersistant_s {
 	int			vote, teamvote; // 0 = none, 1 = yes, 2 = no
 
 	char		guid[33];
+	
+	//VISION:
+	//JaVision+ Stuff
+	account_t *account;
+	VisionPersistent_t vPersistent;
+
 } clientPersistant_t;
 
 typedef struct renderInfo_s

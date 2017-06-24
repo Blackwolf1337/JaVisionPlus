@@ -3985,8 +3985,9 @@ void DoGripAction(gentity_t *self, forcePowers_t forcePower)
 				gripEnt->client->ps.velocity[2] = nvel[2]*700;
 			}
 
-			gripEnt->client->ps.forceGripMoveInterval = level.time + 25; //only update velocity every 300ms, so as to avoid heavy bandwidth usage
-			//WOLF:
+			//VISION:
+			gripEnt->client->ps.forceGripMoveInterval = level.time + v_forcegripUpdaterate.integer; //only update velocity every 300ms, so as to avoid heavy bandwidth usage
+
 		}
 
 		if ((level.time - gripEnt->client->ps.fd.forceGripStarted) > 3000 && !self->client->ps.fd.forceGripDamageDebounceTime)

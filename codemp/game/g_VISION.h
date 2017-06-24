@@ -6,27 +6,28 @@
 // functions beginning with AM_* are additional functions which can be modified any time.
 //
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// *																	   *
 // * You may modify v_* functions but proceed with caution, since they'll  *
 // * glue this gamemod together											   *
 // *																	   *
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 //
-// ____INCLUDED IN____
-// ..game/g_cmds.c
-// ..game/g_svcmds.c
-// ..game/g_VISION_acchandler.c
-// ..game/g_VISION_account.c
-// ..game/g_VISION_cmds.c
-// ___________________
+// ____g_VISION.h_INCLUDED_IN____
+//
+// ..game/g_local.h
+// ______________________________
 //
 // Keep it tracked, preventing useless includes.
+// Currently it's included only into ..game/g_local.h (No need to spread it around)
+// if you need access to most of the structures just include ..game/g_local.h
+// and you should be fine.
 // ___________________
 //
 // Admin data is saved in plain custom format (vision data) in <fs_homepath>/<fs_game>/admins.vd
 // Possible key encryption (AES 256)
 // --- Definitions --- 
 
-#include "qcommon/q_shared.h"
+#include "g_local.h"
 
 #define NUL 0x00
 #define SOH 0x01
@@ -38,7 +39,7 @@
 #define LF	0x0A
 
 #define VISION_DATA "VisionData.vbin"
-#define ACCOUNTSIZE	sizeof(account_t)
+#define ACCOUNTSIZE	sizeof( account_t )
 
 //Copied from Ja++ old fork
 //Don't be mad ples, will be cleaned up.
@@ -105,19 +106,38 @@ typedef struct accountBin_s {
 //Commands unified with admin commands.
 typedef struct VisionCommand_s {
 	const char	*cmd;
-	uint64_t	v_priv_id;
+	const char	*identifier;
+	uint64_t	v_privileges;
 	void( *func )( gentity_t *ent );
 	qboolean	v_admin_authorization;
 } VisionCommand_t;
 
-//Main Mod Functions
-void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg );
-void v_memfree_Accounts( void );
-qboolean v_HandleCommands( gentity_t *ent, const char *cmd );
-void v_Write_Binary( qboolean silent );
-void v_Read_Binary( qboolean silent );
-//Side Functions
-void AM_Login( gentity_t *ent );
-void AM_Logout( gentity_t *ent );
-//Header access 
-static account_t *accounts = NULL;	//This shouldn't be modified.
+
+/* * * * * * * * * * * *
+	Main Mod Functions
+ * * * * * * * * * * * */
+
+void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg );	// Need> g_svcmds.c
+int  v_Account_Delete( char *user );	// Need> g_svcmds.c
+qboolean v_HandleCommands( gentity_t *ent, const char *cmd );	// Need> g_cmds.c
+void v_Write_Binary( qboolean silent );	// Need> g_svcmds.c
+void v_Read_Binary( qboolean silent );	// Need> g_svcmds.c
+
+/* * * * * * * * * * * 
+	   Utilities
+ * * * * * * * * * * */
+
+char *Q_strrep( const char *subject, const char *search, const char *replace );	// Need> g_VISION_cmds.c
+void Q_ConvertLinefeeds( char *string );	// Need> g_VISION_cmds.c
+
+/* * * * * * * * * * * *
+ General Admin Functions
+ * * * * * * * * * * * */
+
+void AM_Logout( gentity_t *ent ); // for the future (force logout)
+
+/* * * * * * * * * * * *
+		Struct
+* * * * * * * * * * * */
+
+account_t *accounts;	//This shouldn't be modified.

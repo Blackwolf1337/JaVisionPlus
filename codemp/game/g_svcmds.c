@@ -469,7 +469,11 @@ void Svcmd_Say_f( void ) {
 	trap->SendServerCommand( -1, va("print \"server: %s\n\"", text ) );
 }
 
-static void Svcmd_AccountAdd_f(void) {
+/*
+Author: Blackwolf
+Desc..: Adds an account into the memory and also binary.
+*/
+static void Svcmd_AccountAdd_f( void ) {
 	char	argUser[MAX_TOKEN_CHARS] = { 0 },
 			argPass[MAX_TOKEN_CHARS] = { 0 },
 			argPrivs[MAX_TOKEN_CHARS] = { 0 },
@@ -479,22 +483,44 @@ static void Svcmd_AccountAdd_f(void) {
 
 
 	if (trap->Argc() < 4) {
-		trap->Print("Syntax: addaccount <user> <pass> <privileges> <rank> <logineffect> <login message>\n");
+		trap->Print( "Syntax: v_account_c <user> <pass> <privileges> <rank> <logineffect> <login message>\n" );
 		return;
 	}
 
-	trap->Argv(1, argUser, sizeof(argUser));
-	trap->Argv(2, argPass, sizeof(argPass));
-	trap->Argv(3, argPrivs, sizeof(argPrivs));
-	trap->Argv(4, argRank, sizeof(argRank));
-	trap->Argv(5, argEffect, sizeof(argEffect));
+	trap->Argv( 1, argUser, sizeof( argUser ) );
+	trap->Argv( 2, argPass, sizeof( argPass ) );
+	trap->Argv( 3, argPrivs, sizeof( argPrivs ) );
+	trap->Argv( 4, argRank, sizeof( argRank ) );
+	trap->Argv( 5, argEffect, sizeof( argEffect ) );
 	argMsg = ConcatArgs(6);
 
 	v_Account_Create( argUser, argPass, atoll( argPrivs ), argRank, argEffect, argMsg );
 	v_Write_Binary( qfalse );
 }
 
-static void Svcmd_Accread_f( void ) {
+/*
+Author: Blackwolf
+Desc..: DELET account from memory and binary.
+*/
+static void Svcmd_AccountDel_f( void ) {
+	char arg[32] = { 0 };
+
+	if (trap->Argc() < 2) {
+		trap->Print( "Syntax: v_account_d <user>\n" );
+		return;
+	}
+
+	trap->Argv( 1, arg, sizeof( arg ) );
+
+	if ( v_Account_Delete(arg) )
+		v_Write_Binary(qfalse);
+}
+
+/*
+Author: Blackwolf
+Desc..: Says it all and also parses accounts into the memory.
+*/
+static void Svcmd_AccountRead_f( void ) {
 	v_Read_Binary( qfalse );
 }
 
@@ -509,8 +535,6 @@ int svcmdcmp( const void *a, const void *b ) {
 }
 
 svcmd_t svcmds[] = {
-	{ "accread",					Svcmd_Accread_f,					qfalse },
-	{ "addaccount",					Svcmd_AccountAdd_f,					qfalse },
 	{ "addbot",						Svcmd_AddBot_f,						qfalse },
 	{ "addip",						Svcmd_AddIP_f,						qfalse },
 	{ "botlist",					Svcmd_BotList_f,					qfalse },
@@ -522,6 +546,9 @@ svcmd_t svcmds[] = {
 	{ "say",						Svcmd_Say_f,						qtrue },
 	{ "toggleallowvote",			Svcmd_ToggleAllowVote_f,			qfalse },
 	{ "toggleuserinfovalidation",	Svcmd_ToggleUserinfoValidation_f,	qfalse },
+	{ "v_account_c",				Svcmd_AccountAdd_f,					qfalse },
+	{ "v_account_d",				Svcmd_AccountDel_f,					qfalse },
+	{ "v_account_r",				Svcmd_AccountRead_f,				qfalse },
 };
 static const size_t numsvcmds = ARRAY_LEN( svcmds );
 
@@ -531,7 +558,7 @@ ConsoleCommand
 
 =================
 */
-qboolean	ConsoleCommand( void ) {
+qboolean ConsoleCommand( void ) {
 	char	cmd[MAX_TOKEN_CHARS] = {0};
 	svcmd_t	*command = NULL;
 

@@ -13,7 +13,8 @@
 // --- Functionality ---
 
 #include "g_local.h"
-#include "g_VISION.h"
+
+account_t *accounts = NULL;
 
 /*
 I was too lazy to build the signature and trailer into the structure.
@@ -35,20 +36,14 @@ Author: Ja++, Raz0r(?)
 Desc..: Add an account (will be tweaked)
 */
 void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg ) {
-	account_t		*account	= NULL;
+	account_t *account = NULL;
 
 	for ( account = accounts; account; account = account->next ) 
 	{
 		
 		if ( !strcmp( user, account->v_User ) ) {
 			//Overwrite
-			trap->Print("Overwriting existing admin.\n");
-			/*trap->Print( "Overwriting account %s with: %s %s %llu %s %s %s\n",	user, account->v_User
-																					, account->v_Password
-																					, account->v_privileges
-																					, account->v_rank
-																					, account->v_loginEffect
-																					, account->v_loginMsg );*/
+			trap->Print( "Overwriting account > %s\n", account->v_User );
 			break;
 		}
 	}
@@ -69,7 +64,41 @@ void v_Account_Create( char *user, char *password, uint64_t privileges, char *ra
 	Q_strncpyz( account->v_additionalInfo, "none", sizeof( account->v_additionalInfo ) );
 	Q_strncpyz( account->v_banned, "0",  sizeof( account->v_banned ) );
 
-	trap->Print( "Creating a new account at address 0x%p with size %zu \n", account, sizeof(account) );
+	trap->Print( "Creating a new account at address 0x%p with size %zu \n", account, sizeof( account_t ) );
+}
+
+/*
+Author: Blackwolf
+Desc..: Removes an account out of memory and also binary.
+*/
+int v_Account_Delete( char *user ) {
+	account_t *account = NULL, *prev = NULL, *next = NULL;
+
+	for ( account = accounts; account; account = account->next ) {
+		next = account->next;
+
+		if ( !strcmp( user, account->v_User ) ) {
+			
+			trap->Print( "Deleting account: %s\n", user );
+
+			free( account );
+			if ( prev ) {
+				prev->next = next;
+			}
+
+			// root node
+			if ( account == accounts ) {
+				accounts = next;
+			}
+
+			return 1;
+		}
+
+		prev = account;
+	}
+
+	trap->Print( "No such account found (%s)\n", user );
+	return 0;
 }
 
 /*
@@ -165,7 +194,7 @@ void v_Read_Binary( qboolean silent ) {
 	
 	if ( memcmp( membuffer, signature, sizeof( signature ) ) )  {	//memcmp instead of strcmp, we're working with binary blocks not strings	
 		if( !silent )
-			trap->Print("No signature.\n");
+			trap->Print( "No signature.\n" );
 		return;
 	} else if ( !silent ) { trap->Print( "Signature is fine.\n" );  }
 	
@@ -178,7 +207,7 @@ void v_Read_Binary( qboolean silent ) {
 
 	if ( ( memcmp( membuffer, trailer, sizeof( trailer ) ) ) ) {
 		if( !silent )
-			trap->Print("No trailer.\n");
+			trap->Print( "No trailer.\n" );
 		return;
 	} else if ( !silent ) { trap->Print( "Trailer is fine.\n" ); }
 		
@@ -195,7 +224,7 @@ void v_Read_Binary( qboolean silent ) {
 		account->next = accounts;
 		accounts = account;
 		
-		if(!silent)
+		if( !silent )
 			trap->Print( "%s %s %lld %s %s %s %s\n\tSIZE->%zu\n",	account->v_User, 
 																	account->v_Password,
 																	account->v_privileges,

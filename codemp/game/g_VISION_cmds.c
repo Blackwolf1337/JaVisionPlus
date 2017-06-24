@@ -13,11 +13,55 @@
 // --- Functionality ---
 
 #include "g_local.h"
-#include "g_VISION.h"
 
+// log in using user + pass
 void AM_Login( gentity_t *ent ) {
-	trap->SendServerCommand( ent->s.number, "print \"Login recognized.\n\"" );
+	char argUser[32] = { 0 }, argPass[32] = { 0 };
+	account_t *account = NULL, *current = NULL;
+
+	if ( trap->Argc() < 3 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Please enter a name and password to login\n\"" );
+		return;
+	}
+
+	//Grab user + pass
+	trap->Argv( 1, argUser, sizeof( argUser ) );
+	trap->Argv( 2, argPass, sizeof( argPass ) );
+
+	// find valid user
+	for ( current = accounts; current; current = current->next ) {
+		if ( !strcmp( current->v_User, argUser ) ) {
+			// case sensitive password
+			if ( !strcmp(current->v_Password, argPass) ) {
+				ent->client->pers.account = account = current;
+				break;
+			}
+		}
+	}
+
+	if ( account ) 
+	{
+		const char *loginMsg = ent->client->pers.account->v_loginMsg;
+		char *sendMsg = NULL;
+
+		//AM_SetLoginEffect( ent );
+		
+		if ( !VALIDSTRING( loginMsg ) ) {
+			trap->SendServerCommand( ent->s.number, "print \"You have logged in\n\"" );
+			return;
+		}
+		
+		sendMsg = Q_strrep( ent->client->pers.account->v_loginMsg, "*name*", ent->client->pers.netname );
+		Q_ConvertLinefeeds( sendMsg );
+		trap->SendServerCommand( -1, va( "print \"%s\n\"", sendMsg ) );
+		free( sendMsg );
+	}
+	else 
+	{
+		trap->SendServerCommand( ent->s.number, "print \"Invalid login\n\"" );
+	}
 }
+
 
 void AM_Logout( gentity_t *ent ) {
 	trap->SendServerCommand( ent->s.number, "print \"Logout recognized.\n\"" );
@@ -25,8 +69,8 @@ void AM_Logout( gentity_t *ent ) {
 
 
 static const VisionCommand_t VisionCommands[] = {
-	{ "amlogin", 0xFF, AM_Login, qfalse },
-	{ "amlogout", 0xFF, AM_Logout, qfalse },
+	{ "amlogin", "x", 0xBADC0DED, AM_Login, qfalse },
+	{ "amlogout", "x",  0xBADC0DED, AM_Logout, qfalse },
 };
 static const size_t numVisionCommands = ARRAY_LEN( VisionCommands );
 
