@@ -505,15 +505,15 @@ Desc..: DELET account from memory and binary.
 static void Svcmd_AccountDel_f( void ) {
 	char arg[32] = { 0 };
 
-	if (trap->Argc() < 2) {
+	if ( trap->Argc() < 2 ) {
 		trap->Print( "Syntax: v_account_d <user>\n" );
 		return;
 	}
 
 	trap->Argv( 1, arg, sizeof( arg ) );
 
-	if ( v_Account_Delete(arg) )
-		v_Write_Binary(qfalse);
+	if ( v_Account_Delete( arg ) )
+		v_Write_Binary( qfalse );
 }
 
 /*

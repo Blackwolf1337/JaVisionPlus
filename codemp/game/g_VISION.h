@@ -12,16 +12,24 @@
 // *																	   *
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 //
-// ____g_VISION.h_INCLUDED_IN____
+// ____g_VISION.h INCLUDED IN____
 //
 // ..game/g_local.h
 // ______________________________
 //
-// Keep it tracked, preventing useless includes.
+// You can find all the functions which i added in these files:
+//
+// ..game/g_cmds.c
+// ..game/g_svcmds.c
+// ..game/g_VISION_account.c
+// ..game/g_VISION_cmds.c
+// ..game/g_VISION_utils.c
+//
+// Also keep track of g_VISIOH.h, preventing useless includes.
 // Currently it's included only into ..game/g_local.h (No need to spread it around)
 // if you need access to most of the structures just include ..game/g_local.h
 // and you should be fine.
-// ___________________
+// _______________________________
 //
 // Admin data is saved in plain custom format (vision data) in <fs_homepath>/<fs_game>/admins.vd
 // Possible key encryption (AES 256)
@@ -75,6 +83,7 @@ typedef struct VisionPersistent_s {
 	int gravity;
 	qboolean qgravity;
 } VisionPersistent_t;
+// ^- in gentity_s
 
 
 //Account data, shouldn't be touched unless needed to.
@@ -91,6 +100,7 @@ typedef struct account_s {
 
 	struct account_s *next;		//Pointer to a new struct of a User
 } account_t;
+// ^- in gentity_s
 
 typedef struct accountBin_s {
 	char		bin_User[32];
@@ -138,6 +148,6 @@ void AM_Logout( gentity_t *ent ); // for the future (force logout)
 
 /* * * * * * * * * * * *
 		Struct
-* * * * * * * * * * * */
+ * * * * * * * * * * * */
 
 account_t *accounts;	//This shouldn't be modified.
