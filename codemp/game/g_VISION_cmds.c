@@ -626,8 +626,7 @@ qboolean v_HandleCommands( gentity_t *ent, const char *cmd ) {
 			return qtrue;
 		}
 	}
-	if(input == HANDLE_CONSOLE)
-		command = (VisionCommand_t *)bsearch( cmd, VisionCommands, numVisionCommands, sizeof( VisionCommands[0] ), v_cmdcmp );
+
 	if ( !command ) {
 		return qfalse;
 	}
