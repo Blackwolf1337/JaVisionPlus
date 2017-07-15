@@ -607,11 +607,6 @@ static int v_cmdcmp( const void *a, const void *b) {
 	return Q_stricmp( (const char *)a, ((VisionCommand_t*)b)->cmd );
 }
 
-static int v_cmdcmpid(const void *a, const void *b) {
-	return Q_stricmp((const char *)a, ((VisionCommand_t*)b)->identifier);
-}
-
-
 //Author: Ja++ ?
 // handle admin related commands.
 // return true if the command exists and/or everything was handled fine.
@@ -626,7 +621,8 @@ qboolean v_HandleCommands( gentity_t *ent, const char *cmd ) {
 			return qtrue;
 		}
 	}
-
+	
+	command = (VisionCommand_t *)bsearch( cmd, VisionCommands, numVisionCommands, sizeof( VisionCommands[0] ), v_cmdcmp );
 	if ( !command ) {
 		return qfalse;
 	}
