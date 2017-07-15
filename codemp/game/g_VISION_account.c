@@ -19,17 +19,17 @@ account_t *accounts = NULL;
 /*
 I was too lazy to build the signature and trailer into the structure.
 */
-char signature[22] = {	SOH,  0x56, 0x49,
-						0x53, 0x49, 0x4F,
-						0x4E, LF,	0x31,
-						0x2E, 0x30, LF,
-						STX,  0x41, 0x43, 
-						0x43, 0x4F, 0x55, 
-						0x4E, 0x54, 0x53, 
-						LF };
+const char signature[22] = {	SOH,  0x56, 0x49,
+								0x53, 0x49, 0x4F,
+								0x4E, LF,	0x31,
+								0x2E, 0x30, LF,
+								STX,  0x41, 0x43, 
+								0x43, 0x4F, 0x55, 
+								0x4E, 0x54, 0x53, 
+								LF };
 
-char trailer[6] = { FS, LF,  ETX,
-					LF, SUB, NUL };
+const char trailer[6] = { FS, LF,  ETX,
+						  LF, SUB, NUL };
 
 /*
 Author: Ja++, Raz0r(?)
@@ -215,7 +215,7 @@ void v_Read_Binary( qboolean silent ) {
 	fileSize = ftell( pfile );
 	i = ( ( fileSize-sizeof( signature )-sizeof( trailer ) ) / sizeof( accountBin_t ) ); //calculate the amount of admins
 	fseek( pfile, sizeof( signature ), SEEK_SET );										 //set filepointer at the end of the signature header
-
+	
 	for ( int j = 1; j <= i; j++ )
 	{
 		account = (account_t *)malloc( ACCOUNTSIZE );

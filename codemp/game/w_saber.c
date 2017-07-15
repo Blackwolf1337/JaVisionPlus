@@ -2681,6 +2681,11 @@ static QINLINE qboolean G_SaberCollide(gentity_t *atk, gentity_t *def, vec3_t at
 		return qfalse;
 	}
 
+	//Raz: Avoid saber collisions for ghosts and frozen players
+	if (atk->client->pers.vPersistent.isSlept || atk->client->pers.vPersistent.isGhost ||
+		def->client->pers.vPersistent.isSlept || def->client->pers.vPersistent.isGhost)
+		return qfalse;
+
 	i = 0;
 	while (i < MAX_SABERS)
 	{
@@ -4535,6 +4540,14 @@ static QINLINE qboolean CheckSaberDamage(gentity_t *self, int rSaberNum, int rBl
 		if (g_entities[tr.entityNum].client &&
 			g_entities[tr.entityNum].client->ps.duelInProgress &&
 			g_entities[tr.entityNum].client->ps.duelIndex != self->s.number)
+		{
+			return qfalse;
+		}
+
+		//Raz: Ghosts and frozen clients can't be damaged
+		if (g_entities[tr.entityNum].client && (g_entities[tr.entityNum].client->pers.vPersistent.isSlept
+			|| g_entities[tr.entityNum].client->pers.vPersistent.isGhost || self->client->pers.vPersistent.isSlept
+			|| self->client->pers.vPersistent.isGhost))
 		{
 			return qfalse;
 		}
@@ -8787,6 +8800,11 @@ nextStep:
 
 		WP_SaberClearDamage();
 		saberDoClashEffect = qfalse;
+
+		//Raz: Avoid saber collisions for ghosts
+		if (self->client->pers.vPersistent.isGhost) {
+			return;
+		}
 
 		//Now cycle through each saber and each blade on the saber and do damage traces.
 		while (rSaberNum < MAX_SABERS)

@@ -511,6 +511,8 @@ typedef struct clientPersistant_s {
 	
 	//VISION:
 	//JaVision+ Stuff
+	qboolean	jetpack;
+
 	account_t *account;
 	VisionPersistent_t vPersistent;
 

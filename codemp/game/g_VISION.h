@@ -49,14 +49,19 @@
 #define VISION_DATA "VisionData.vbin"
 #define ACCOUNTSIZE	sizeof( account_t )
 
-/*
-Bitfield
-*/
-#define PRIV_01		(0x0000000000000001u)
-#define PRIV_02		(0x0000000000000002u)
-#define PRIV_SLEEP 	(0x0000000000000004u)
-#define PRIV_04		(0x0000000000000008u)
-#define PRIV_05		(0x0000000000000010u)
+// toggle ON, OFF for switch statements and classes
+#define ON 1
+#define OFF 0
+#define FORCE 0
+#define MERC 1
+#define GHOST 2
+
+//Bitfield
+#define PRIV_EMPWR	(0x0000000000000001u)
+#define PRIV_GHOST	(0x0000000000000002u)
+#define PRIV_MERC 	(0x0000000000000004u)
+#define PRIV_NOCLP	(0x0000000000000008u)
+#define PRIV_SLEEP	(0x0000000000000010u)
 #define PRIV_06		(0x0000000000000020u)
 #define PRIV_07		(0x0000000000000040u)
 #define PRIV_08		(0x0000000000000080u)
@@ -117,9 +122,7 @@ Bitfield
 #define PRIV_63		(0x4000000000000000u)
 #define PRIV_ACTMGR	(0x8000000000000000u) // Sollte nicht an Spieler vergeben werden!
 
-/*
-g_VISION_utils.c
-*/
+//g_VISION_utils.c
 #define FINDCL_SUBSTR					(0x0001u)
 #define FINDCL_FIRSTMATCH				(0x0002u)
 #define FINDCL_CASE						(0x0004u)
@@ -220,10 +223,10 @@ void v_Read_Binary( qboolean silent );	// Need> g_svcmds.c
 char *Q_strrep( const char *subject, const char *search, const char *replace );	// Need> g_VISION_cmds.c
 void Q_ConvertLinefeeds( char *string );	// Need> g_VISION_cmds.c
 qboolean Q_StringIsInteger( const char * s );
-static qboolean cmpSubCase( const char * s1, const char * s2 );
-static qboolean cmpSub( const char * s1, const char * s2 );
+static qboolean cmpSubCase( const char * s1, const char * s2 ); // START: Gonna clean this up with a switch statement
+static qboolean cmpSub( const char * s1, const char * s2 );  // no need for 1000 of functions
 static qboolean cmpWholeCase( const char * s1, const char * s2 );
-static qboolean cmpWhole( const char * s1, const char * s2 );
+static qboolean cmpWhole( const char * s1, const char * s2 ); // END:
 int G_ClientFromString( const gentity_t * ent, const char * match, uint32_t flags );
 
 /* * * * * * * * * * * *
@@ -231,9 +234,11 @@ int G_ClientFromString( const gentity_t * ent, const char * match, uint32_t flag
  * * * * * * * * * * * */
 
 void AM_Logout( gentity_t *ent ); // for the future (force logout)
+void Cmd_Noclip_f( gentity_t *ent );
 
 /* * * * * * * * * * * *
 		Struct
  * * * * * * * * * * * */
 
 account_t *accounts;	//This shouldn't be modified.
+VisionCommand_t *command;

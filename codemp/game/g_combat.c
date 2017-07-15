@@ -4448,6 +4448,28 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_
 		return;
 	}
 
+	//Raz: Avoid damage
+	if (targ && targ->client) {
+		if (targ->client->pers.vPersistent.isSlept || targ->client->pers.vPersistent.isGhost) {
+			return;
+		}
+
+		if ((v_chatProtection.integer && (targ->client->ps.eFlags & EF_TALK)) && !targ->client->ps.duelInProgress) {
+			return;
+		}
+
+	}
+	if (attacker && attacker->client) {
+		if (attacker->client->pers.vPersistent.isSlept || attacker->client->pers.vPersistent.isGhost) {
+			return;
+		}
+		if (v_chatProtection.integer && !attacker->client->ps.duelInProgress
+			&& (attacker->client->ps.eFlags & EF_TALK))
+		{
+			return;
+		}
+	}
+
 	if (mod == MOD_DEMP2 && targ && targ->inuse && targ->client)
 	{
 		if ( targ->client->ps.electrifyTime < level.time )

@@ -1131,6 +1131,13 @@ void G_UpdateClientBroadcasts( gentity_t *self ) {
 	self->r.broadcastClients[0] = 0u;
 	self->r.broadcastClients[1] = 0u;
 
+	if (self->client->pers.vPersistent.isGhost) {
+		self->r.svFlags |= SVF_BROADCASTCLIENTS;
+	}
+	else {
+		self->r.svFlags &= ~SVF_BROADCASTCLIENTS;
+	}
+
 	for ( i = 0, other = g_entities; i < MAX_CLIENTS; i++, other++ ) {
 		qboolean send = qfalse;
 		float dist;
@@ -1144,6 +1151,16 @@ void G_UpdateClientBroadcasts( gentity_t *self ) {
 		if ( other == self ) {
 			// we are always sent to ourselves anyway, this is purely an optimisation
 			continue;
+		}
+
+		if (self->client->pers.vPersistent.isGhost) {
+			if ( other->client->pers.account && other->client->pers.account->v_rank > 0 /*&& AM_HasPrivilege( other, PRIV_GHOST )*/) {
+				send = qtrue;
+			}
+			else {
+				// do not send if we are a ghost and they can't see us
+				continue;
+			}
 		}
 
 		VectorSubtract( self->client->ps.origin, other->client->ps.origin, angles );
@@ -2833,6 +2850,9 @@ void ClientThink_real( gentity_t *ent ) {
 	}
 	else {
 		pmove.tracemask = MASK_PLAYERSOLID;
+		if (ent->client->pers.vPersistent.isGhost) {
+			pmove.tracemask = 267009/*MASK_DEADSOLID*/;
+		}
 	}
 	pmove.trace = SV_PMTrace;
 	pmove.pointcontents = trap->PointContents;
@@ -3052,6 +3072,11 @@ void ClientThink_real( gentity_t *ent ) {
 			}
 		}
 #endif
+	}
+
+	if (ent->client->pers.vPersistent.isGhost) {
+		pmove.tracemask = CONTENTS_SOLID;
+		ent->r.contents = 0u;
 	}
 
 	Pmove (&pmove);
@@ -3378,7 +3403,7 @@ void ClientThink_real( gentity_t *ent ) {
 
 	// link entity now, after any personal teleporters have been used
 	trap->LinkEntity ((sharedEntity_t *)ent);
-	if ( !ent->client->noclip ) {
+	if ( !ent->client->noclip && !ent->client->pers.vPersistent.isGhost ) {
 		G_TouchTriggers( ent );
 	}
 
