@@ -17,9 +17,9 @@
 void Toggle_Func( gentity_t *ent, int power, int toggle ) {
 	int i;
 
-	if (power == FORCE) 
+	if ( power == FORCE ) 
 	{
-		switch (toggle) 
+		switch ( toggle ) 
 		{
 		case ON:
 			ent->client->ps.fd.forcePowerSelected = 0; // HACK: What the actual fuck
@@ -27,7 +27,7 @@ void Toggle_Func( gentity_t *ent, int power, int toggle ) {
 
 			ent->client->pers.vPersistent.forcePowersKnown = ent->client->ps.fd.forcePowersKnown;
 
-			for (i = 0; i < NUM_FORCE_POWERS; i++) {
+			for ( i = 0; i < NUM_FORCE_POWERS; i++ ) {
 				ent->client->pers.vPersistent.forcePowerBaseLevel[i] = ent->client->ps.fd.forcePowerBaseLevel[i];
 				ent->client->ps.fd.forcePowerBaseLevel[i] = 3;
 				ent->client->pers.vPersistent.forcePowerLevel[i] = ent->client->ps.fd.forcePowerLevel[i];
@@ -50,17 +50,17 @@ void Toggle_Func( gentity_t *ent, int power, int toggle ) {
 		}
 	}
 	
-	else if (power == MERC) 
+	else if ( power == MERC ) 
 	{
-		switch (toggle) 
+		switch ( toggle ) 
 		{
 		case ON:
 			// save forcepower data because we strip them + revert
-			for (int fp = 0; fp < NUM_FORCE_POWERS; fp++) {
+			for ( int fp = 0; fp < NUM_FORCE_POWERS; fp++ ) {
 				ent->client->pers.vPersistent.forcePowerBaseLevel[fp] = ent->client->ps.fd.forcePowerBaseLevel[fp];
 				ent->client->pers.vPersistent.forcePowerLevel[fp] = ent->client->ps.fd.forcePowerLevel[fp];
 				if (ent->client->ps.fd.forcePowersActive & (1 << fp)) {
-					WP_ForcePowerStop(ent, (forcePowers_t)fp);
+					WP_ForcePowerStop( ent, (forcePowers_t)fp );
 				}
 				ent->client->ps.holocronsCarried[fp] = 0;
 				ent->client->ps.fd.forcePowerDebounce[fp] = 0;
@@ -102,7 +102,7 @@ void Toggle_Func( gentity_t *ent, int power, int toggle ) {
 			ent->client->ps.stats[STAT_HOLDABLE_ITEMS] = ((1 << HI_NUM_HOLDABLE) - 1) & ~1;
 			ent->client->ps.stats[STAT_HOLDABLE_ITEM] = HI_NONE + 1;
 
-			if (ent->client->pers.jetpack != qtrue)
+			if ( ent->client->pers.jetpack != qtrue )
 				ent->client->ps.stats[STAT_HOLDABLE_ITEMS] &= ~(1 << HI_JETPACK);
 		break;
 
@@ -113,8 +113,8 @@ void Toggle_Func( gentity_t *ent, int power, int toggle ) {
 			for (int fp = 0; fp < NUM_FORCE_POWERS; fp++) {
 				ent->client->ps.fd.forcePowerBaseLevel[fp] = ent->client->pers.vPersistent.forcePowerBaseLevel[fp];
 				ent->client->ps.fd.forcePowerLevel[fp] = ent->client->pers.vPersistent.forcePowerLevel[fp];
-				if (ent->client->ps.fd.forcePowersActive & (1 << fp)) {
-					WP_ForcePowerStop(ent, (forcePowers_t)fp);
+				if ( ent->client->ps.fd.forcePowersActive & (1 << fp) ) {
+					WP_ForcePowerStop( ent, (forcePowers_t)fp );
 				}
 				ent->client->ps.holocronsCarried[fp] = 0;
 				ent->client->ps.fd.forcePowerDebounce[fp] = 0;
@@ -169,20 +169,20 @@ void Toggle_Func( gentity_t *ent, int power, int toggle ) {
 			// select the first available weapon
 			int newWeap = -1;
 			for (int i = WP_SABER; i < WP_NUM_WEAPONS; i++) {
-				if ((ent->client->ps.stats[STAT_WEAPONS] & (1 << i))) {
+				if ( ( ent->client->ps.stats[STAT_WEAPONS] & (1 << i) ) ) {
 					newWeap = i;
 					break;
 				}
 			}
 
 			if (newWeap == WP_NUM_WEAPONS) {
-				for (int i = WP_STUN_BATON; i < WP_SABER; i++) {
-					if ((ent->client->ps.stats[STAT_WEAPONS] & (1 << i))) {
+				for ( int i = WP_STUN_BATON; i < WP_SABER; i++ ) {
+					if ( ( ent->client->ps.stats[STAT_WEAPONS] & (1 << i) ) ) {
 						newWeap = i;
 						break;
 					}
 				}
-				if (newWeap == WP_SABER) {
+				if ( newWeap == WP_SABER ) {
 					newWeap = WP_NONE;
 				}
 			}
@@ -195,16 +195,16 @@ void Toggle_Func( gentity_t *ent, int power, int toggle ) {
 				ent->client->ps.weapon = WP_NONE;
 			}
 
-			if (ent->client->ps.weapon != WP_SABER) {
+			if ( ent->client->ps.weapon != WP_SABER ) {
 				G_AddEvent(ent, EV_NOAMMO, wp);
 			}
 		break;
 		}
 	}
 
-	else if (power == GHOST)
+	else if ( power == GHOST )
 	{
-		switch (toggle)
+		switch ( toggle )
 		{
 		case ON:
 			ent->client->pers.vPersistent.isGhost = qtrue;
@@ -221,23 +221,65 @@ void Toggle_Func( gentity_t *ent, int power, int toggle ) {
 		break;
 		}
 	}
+
+	else if ( power == SLEEP )
+	{
+		switch ( toggle )
+		{
+		case ON:
+			ent->client->pers.vPersistent.isSlept = qtrue;
+			/*if (cl->hook) {
+			Weapon_HookFree(cl->hook);
+			}*/
+			BG_ClearRocketLock( &ent->client->ps );
+			VectorClear( &ent->client->ps.velocity);
+			ent->client->ps.forceHandExtend = HANDEXTEND_KNOCKDOWN;
+			ent->client->ps.forceHandExtendTime = INT32_MAX;
+			ent->client->ps.forceDodgeAnim = 0;
+		break;
+
+		case OFF:
+			ent->client->pers.vPersistent.isSlept = qfalse;
+			ent->client->ps.forceHandExtendTime = level.time + BG_AnimLength(g_entities[ent->client->ps.clientNum].localAnimIndex, (animNumber_t)BOTH_GETUP1);
+			ent->client->ps.forceDodgeAnim = (animNumber_t)BOTH_GETUP1;
+		break;
+		}
+	}
+
+	else if ( power == GOD )
+	{
+		switch ( toggle )
+		{
+		case ON:
+			ent->client->pers.vPersistent.isGod = qtrue;
+			ent->client->ps.powerups[7] = level.time + Q3_INFINITE;
+			ent->takedamage = qfalse;
+		break;
+
+		case OFF:
+			ent->client->pers.vPersistent.isGod = qfalse;
+			ent->client->ps.powerups[7] = 0;
+			ent->takedamage = qtrue;
+		break;
+		}
+	}
 }
 
-static void AM_Empower_f(gentity_t *ent) {
+static void AM_Empower_f( gentity_t *ent ) {
 	char arg1[64] = { 0 };
 	int targetClient;
 	gentity_t *targ;
 
 	// can empower: self, partial name, clientNum
-	trap->Argv(1, arg1, sizeof(arg1));
-	if (ent) {
-		targetClient = (trap->Argc() > 1) ? G_ClientFromString(ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT) : ent - g_entities;
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	if ( ent ) {
+		targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
 	}
 	else {
-		targetClient = (trap->Argc() > 1) ? G_ClientFromString(ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT) : -1;
+		targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : -1;
 	}
 
-	if (targetClient == -1) {
+	if ( targetClient == -1 ) {
 		return;
 	}
 
@@ -248,37 +290,110 @@ static void AM_Empower_f(gentity_t *ent) {
 	}*/
 
 	targ->client->pers.vPersistent.empowered = !targ->client->pers.vPersistent.empowered;
-	if (targ->client->pers.vPersistent.empowered) {
-		Toggle_Func(targ, FORCE, ON);
+	if ( targ->client->pers.vPersistent.empowered ) {
+		Toggle_Func( targ, FORCE, ON );
 		//Draw string bleh
 	}
 	else {
-		Toggle_Func(targ, FORCE, OFF);
+		Toggle_Func( targ, FORCE, OFF );
 		//Draw string blehbleh
 	}
 }
 
+// force the specified client to a specific team
+static void AM_ForceTeam_f(gentity_t *ent) {
+	char arg1[64] = { 0 }, arg2[64] = { 0 };
+	int targetClient;
+	gentity_t *targ;
+
+	if ( trap->Argc() != 3 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amforceteam ID/name <team> ^7or ^1amforceteam -1 <team> ^7(to force all)\n\"" );
+		return;
+	}
+
+	//amforceteam <partial name|clientNum> <team>
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	trap->Argv( 2, arg2, sizeof( arg2 ) );
+
+	if ( ent ) {
+		targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
+	}
+	else {
+		targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : -1;
+	}
+
+	// check for purposely sleeping all. HACKHACKHACK
+	if ( arg1[0] == '-' && arg1[1] == '1' ) {
+		targetClient = -2;
+	}
+
+	// sleep everyone
+	if ( targetClient == -2 ) {
+		qboolean allForced = qtrue;
+		int i;
+		gentity_t *e;
+		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) {
+			if ( !e->inuse || e->client->pers.connected == CON_DISCONNECTED ) {
+				continue;
+			}
+
+			if ( !e->client->pers.vPersistent.isSlept ) {
+				allForced = qfalse;
+				break;
+			}
+		}
+
+		if ( allForced ) {
+			return;
+		}
+
+		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) {
+			if ( !e->inuse || e->client->pers.connected == CON_DISCONNECTED ) {
+				continue;
+			}
+
+			/*
+			Can Inflict check
+			*/
+
+			SetTeam(e, arg2);
+		}
+
+		//Draw string
+	}
+
+	targ = &g_entities[targetClient];
+
+	/*if (!AM_CanInflict(ent, targ)) {
+		return;
+	}*/
+
+	if ( targ->inuse && targ->client && targ->client->pers.connected ) {
+		SetTeam( targ, arg2, qtrue );
+	}
+}
+
 // ghost specified client (or self)
-static void AM_Ghost_f(gentity_t *ent) {
+static void AM_Ghost_f( gentity_t *ent ) {
 	char arg1[64] = { 0 };
 	gentity_t *targ = NULL;
 	int targetClient = -1;
 
 
-	if (trap->Argc() < 1) {
-		trap->SendServerCommand(ent->s.number, "print \"Usage: ^1amghost ID/name\n\"");
+	if ( trap->Argc() < 1 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amghost ID/name\n\"" );
 		return;
 	}
 
 	//can ghost, partial name or clientNum
-	trap->Argv(1, arg1, sizeof(arg1));
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
 
-	if (ent)
+	if ( ent )
 	{
-		targetClient = (trap->Argc() > 1) ? G_ClientFromString(ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT) : ent - g_entities;
+		targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
 	}
 
-	if (targetClient == -1) {
+	if ( targetClient == -1 ) {
 		return;
 	}
 
@@ -288,15 +403,130 @@ static void AM_Ghost_f(gentity_t *ent) {
 		return;
 	}*/
 	targ->client->pers.vPersistent.isGhost = !targ->client->pers.vPersistent.isGhost;
-	if (targ->client->pers.vPersistent.isGhost) {
-		Toggle_Func(targ, GHOST, ON);
+	if ( targ->client->pers.vPersistent.isGhost ) {
+		Toggle_Func( targ, GHOST, ON );
 		//Draw String
 	}
 	else {
-		Toggle_Func(targ, GHOST, OFF);
+		Toggle_Func( targ, GHOST, OFF );
 		//Draw String
 	}
-	trap->LinkEntity((sharedEntity_t *)targ);
+	trap->LinkEntity( (sharedEntity_t *)targ );
+}
+
+static void AM_Give_f( gentity_t *ent ) {
+	int client;
+	gentity_t *target = NULL;
+	char arg1[64] = { 0 };
+	char arg2[64] = { 0 };
+	qboolean shift = 0;
+
+	if ( !ent ) {
+		trap->Print("This command is not available for server console use yet\n");
+		return;
+	}
+
+	if ( trap->Argc() < 1 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amgive <client> ammo/weapon/force/health/armor id <amount> \n        \\amgive <client> health/armor <amount>\n\"" );
+		return;
+	}
+
+	/*if (!AM_CanInflict(ent, target)) {
+		return;
+	}*/
+
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	if (!Q_stricmp(arg1, "weapon") || !Q_stricmp(arg1, "force") || !Q_stricmp(arg1, "ammo")
+		|| !Q_stricmp(arg1, "health") || !Q_stricmp(arg1, "armor") || !Q_stricmp(arg1, "all") 
+		|| !Q_stricmp(arg1, "shield") || !Q_stricmp(arg1, "weapons") || !Q_stricmp(arg1, "weaponnum")
+		|| !Q_stricmp(arg1, "excellent") || !Q_stricmp(arg1, "impressive") || !Q_stricmp(arg1, "gauntletaward")
+		|| !Q_stricmp(arg1, "defend") || !Q_stricmp(arg1, "assist"))
+		shift = qtrue;
+
+	trap->Argv( 2 - shift, arg2, sizeof( arg2 ) );
+
+	if ( !shift ) {
+		client = G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT );
+		if (client == -1) {
+			return;
+		}
+		target = &g_entities[client];
+		G_Give( target, arg2, ConcatArgs( 3 - shift ), trap->Argc() - 1 );
+
+	}
+	else {
+		target = ent;
+		G_Give( target, arg2, ConcatArgs( 3 - shift ), trap->Argc() );
+	}
+}
+
+static void AM_God_f( gentity_t *ent ) {
+	char arg1[64] = { 0 };
+	int targetClient = -1;
+	gentity_t *targ = NULL;
+
+	if (trap->Argc() < 1) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1\amgod <client/ID>\n\"" );
+		return;
+	}
+
+	// can god, partial name, clientNum
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+
+	if ( ent ) {
+		targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
+	}
+
+	if ( targetClient == -1 ) {
+		return;
+	}
+
+	targ = &g_entities[targetClient];
+
+	/*if (!AM_CanInflict(ent, targ)) {
+		return;
+	}*/
+
+	targ->client->pers.vPersistent.isGod = !targ->client->pers.vPersistent.isGod;
+
+	if ( targ->client->pers.vPersistent.isGod ) {
+		Toggle_Func( targ, GOD, ON );
+		//Draw string
+	}
+	else {
+		Toggle_Func( targ, GOD, OFF );
+		//Draw string
+	}
+}
+
+static void AM_Gravity_f( gentity_t *ent ) {
+	char arg1[64] = { 0 };
+	char arg2[64] = { 0 };
+	int targetClient;
+	gentity_t *targ = NULL;
+
+	if ( trap->Argc() < 2 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amgravity <client/id> <gravity (^2800^7)>\n\"" );
+		return;
+	}
+
+	//Arg1 -> ID
+	//Arg2 -> Size (Float not yet implented // Integer Only)
+	trap->Argv( 1, arg1, sizeof(arg1) );
+	trap->Argv( 2, arg2, sizeof(arg2) );
+	targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
+
+	if ( targetClient == -1 ) {
+		return;
+	}
+
+	targ = &g_entities[targetClient];
+
+	/*if (!AM_CanInflict(ent, targ)) {
+		return;
+	}*/
+
+	targ->client->pers.vPersistent.gravity = atoi( arg2 );
 }
 
 // log in using user + pass
@@ -352,35 +582,23 @@ void AM_Logout( gentity_t *ent ) {
 	trap->SendServerCommand( ent->s.number, "print \"Logout recognized.\n\"" );
 }
 
-void G_SleepClient(gclient_t *cl) {
-	cl->pers.vPersistent.isSlept = qtrue;
-	/*if (cl->hook) {
-		Weapon_HookFree(cl->hook);
-	}*/
-	BG_ClearRocketLock(&cl->ps);
-	VectorClear( &cl->ps.velocity );
-	cl->ps.forceHandExtend = HANDEXTEND_KNOCKDOWN;
-	cl->ps.forceHandExtendTime = INT32_MAX;
-	cl->ps.forceDodgeAnim = 0;
-}
-
-static void AM_Merc_f(gentity_t *ent) {
+static void AM_Merc_f( gentity_t *ent ) {
 	char arg1[64] = { 0 };
 	int targetClient;
 	gentity_t *targ = NULL;
 
 	// can merc self, partial name, clientNum
-	trap->Argv(1, arg1, sizeof(arg1));
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
 
-	if (ent) {
-		targetClient = (trap->Argc() > 1) ? G_ClientFromString(ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT) : ent - g_entities;
+	if ( ent ) {
+		targetClient = ( trap->Argc() > 1) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
 	}
 	else {
-		targetClient = (trap->Argc() > 1) ? G_ClientFromString(ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT) : -1;
+		targetClient = ( trap->Argc() > 1) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : -1;
 	}
 
 
-	if (targetClient == -1) {
+	if ( targetClient == -1 ) {
 		return;
 	}
 
@@ -392,13 +610,13 @@ static void AM_Merc_f(gentity_t *ent) {
 
 	targ->client->pers.vPersistent.merc = !targ->client->pers.vPersistent.merc;
 	// give everything between WP_NONE and LAST_USEABLE_WEAPON
-	if (targ->client->pers.vPersistent.merc) {
-		Toggle_Func(targ, MERC, ON);
+	if ( targ->client->pers.vPersistent.merc ) {
+		Toggle_Func( targ, MERC, ON );
 		//Draw string bleh
 	}
 	// back to spawn weapons, select first usable weapon
 	else {
-		Toggle_Func(targ, MERC, OFF);
+		Toggle_Func( targ, MERC, OFF );
 		//Draw string blehbleh
 	}
 }
@@ -409,13 +627,13 @@ static void AM_Noclip_f( gentity_t *ent ) {
 	gentity_t *targ = NULL;
 
 	// can merc self, partial name, clientNum
-	trap->Argv(1, arg1, sizeof(arg1));
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
 
-	if (ent) {
-		targetClient = (trap->Argc() > 1) ? G_ClientFromString(ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT) : ent - g_entities;
+	if ( ent ) {
+		targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
 	}
 	else {
-		targetClient = (trap->Argc() > 1) ? G_ClientFromString(ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT) : -1;
+		targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : -1;
 	}
 
 
@@ -435,14 +653,14 @@ static void AM_Sleep_f( gentity_t *ent ) {
 	char arg1[MAX_NETNAME] = { 0 };
 	int clientNum;
 
-	if (trap->Argc() < 2) {
+	if ( trap->Argc() < 2 ) {
 		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amsleep ID/name ^7or ^1amsleep -1 ^7(to sleep all)\n\"" );
 		return;
 	}
 
 	// grab the clientNum
-	trap->Argv(1, arg1, sizeof(arg1));
-	clientNum = G_ClientFromString(ent, arg1, FINDCL_SUBSTR);
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	clientNum = G_ClientFromString( ent, arg1, FINDCL_SUBSTR );
 
 	// check for purposely sleeping all. HACKHACKHACK
 	if ( arg1[0] == '-' && arg1[1] == '1' ) {
@@ -478,7 +696,7 @@ static void AM_Sleep_f( gentity_t *ent ) {
 			Can Inflict check
 			*/
 
-			G_SleepClient( e->client );
+			Toggle_Func( e, SLEEP, ON );
 		}
 		
 		//Draw string
@@ -495,59 +713,83 @@ static void AM_Sleep_f( gentity_t *ent ) {
 			return;
 		}
 
-		G_SleepClient( e->client );
+		Toggle_Func( e, SLEEP, ON );
 
 		//Draw string
 	}
 }
 
-void G_WakeClient( gclient_t *cl ) {
-	const animNumber_t anim = BOTH_GETUP1;
-	cl->pers.vPersistent.isSlept = qfalse;
-	cl->ps.forceHandExtendTime = level.time + BG_AnimLength(g_entities[cl->ps.clientNum].localAnimIndex, anim);
-	cl->ps.forceDodgeAnim = anim;
+static void AM_Speed_f( gentity_t *ent ) {
+	char arg1[64] = { 0 };
+	char arg2[64] = { 0 };
+	int targetClient;
+	gentity_t *targ = NULL;
+
+	if (trap->Argc() < 2) {
+		trap->SendServerCommand( ent->s.number, va( "print \"Usage: ^amspeed <client/id> <speed (Default: ^2%s7)>\n\"", g_speed.value ) );
+		return;
+	}
+
+	//Arg1 -> ID
+	//Arg2 -> Size (Float not yet implented // Integer Only)
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	trap->Argv( 2, arg2, sizeof( arg2 ) );
+	targetClient = ( trap->Argc() > 1) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
+
+	if (targetClient == -1) {
+		return;
+	}
+
+	targ = &g_entities[targetClient];
+
+	/*if (!AM_CanInflict(ent, targ)) {
+		return;
+	}*/
+
+
+	targ->client->pers.vPersistent.speed = atoi( arg2 );
 }
 
 static void AM_Wake_f( gentity_t *ent ) {
 	char arg1[MAX_NETNAME] = { 0 };
 	int clientNum;
 
-	if (trap->Argc() < 2) {
+	if ( trap->Argc() < 2 ) {
 		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amwake ID/name ^7or ^1amwake -1 ^7(to wake all)\n\"" );
 		return;
 	}
 
 	// grab the clientNum
-	trap->Argv(1, arg1, sizeof(arg1));
-	clientNum = G_ClientFromString(ent, arg1, FINDCL_SUBSTR);
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	clientNum = G_ClientFromString( ent, arg1, FINDCL_SUBSTR );
 
 	// check for purposely waking all. HACKHACKHACK
-	if (arg1[0] == '-' && arg1[1] == '1') {
+	if ( arg1[0] == '-' && arg1[1] == '1' ) {
 		clientNum = -2;
 	}
 
 	// wake everyone
-	if (clientNum == -2) {
+	if ( clientNum == -2 ) {
 		qboolean allWoken = qtrue;
 		int i;
 		gentity_t *e;
-		for (i = 0, e = g_entities; i < level.maxclients; i++, e++) {
-			if (!e->inuse || e->client->pers.connected == CON_DISCONNECTED) {
+		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) {
+			if ( !e->inuse || e->client->pers.connected == CON_DISCONNECTED ) {
 				continue;
 			}
 
-			if (e->client->pers.vPersistent.isSlept) {
+			if ( e->client->pers.vPersistent.isSlept ) {
 				allWoken = qfalse;
 				break;
 			}
 		}
 
-		if (allWoken) {
+		if ( allWoken ) {
 			return;
 		}
 
-		for (i = 0, e = g_entities; i < level.maxclients; i++, e++) {
-			if (!e->inuse || e->client->pers.connected == CON_DISCONNECTED) {
+		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) {
+			if ( !e->inuse || e->client->pers.connected == CON_DISCONNECTED ) {
 				continue;
 			}
 
@@ -555,23 +797,23 @@ static void AM_Wake_f( gentity_t *ent ) {
 				continue;
 			}*/
 
-			G_WakeClient( e->client );
+			Toggle_Func( e, SLEEP, OFF );
 		}
 		// Draw centerprint or chat output.
 	}
 	// sleep specified clientNum
-	else if (clientNum != -1) {
+	else if ( clientNum != -1 ) {
 		gentity_t *e = g_entities + clientNum;
 
 		/*if (!AM_CanInflict(ent, e)) {
 			return;
 		}*/
 
-		if (!e->client->pers.vPersistent.isSlept) {
+		if ( !e->client->pers.vPersistent.isSlept ) {
 			return;
 		}
 
-		G_WakeClient( e->client );
+		Toggle_Func( e, SLEEP, OFF );
 		e->s.heldByClient = 12;
 
 		//Draw centerprint or chat output.
@@ -589,12 +831,17 @@ void v_AM_Accountmanage( gentity_t *ent, account_t *account ) {
 // v w x y z - sort after alphabet
 static const VisionCommand_t VisionCommands[] = {
 	{ "amempower",	"empower",		PRIV_EMPWR,		AM_Empower_f,		qtrue },
+	{ "amforceteam", "forceteam",	PRIV_FRCTM,		AM_ForceTeam_f,		qtrue },
 	{ "amghost",	"ghost",		PRIV_GHOST,		AM_Ghost_f,			qtrue },
-	{ "amlogin",	"x",			0xBADC0DED,		AM_Login,			qfalse },
-	{ "amlogout",	"x",			0xBADC0DED,		AM_Logout,			qfalse },
+	{ "amgive",		"v_give",		PRIV_GIVE,		AM_Give_f,			qtrue },
+	{ "amgod",		"v_god",		PRIV_GOD,		AM_God_f,			qtrue },
+	{ "amgravity",  "v_gravity",	PRIV_GRVTY,		AM_Gravity_f,		qtrue },
+	{ "amlogin",	"x",			PRIV_NONE,		AM_Login,			qfalse },
+	{ "amlogout",	"x",			PRIV_NONE,		AM_Logout,			qfalse },
 	{ "ammerc",		"merc",			PRIV_MERC,		AM_Merc_f,			qtrue },
 	{ "amnoclip",	"v_noclip",		PRIV_NOCLP,		AM_Noclip_f,		qtrue },
 	{ "amsleep",	"sleep",		PRIV_SLEEP,		AM_Sleep_f,			qtrue },
+	{ "amspeed",	"v_speed",		PRIV_SPEED,		AM_Speed_f,			qtrue },
 	{ "amwake",		"wake",			PRIV_SLEEP,		AM_Wake_f,			qtrue },
 	{ "v_account",	"accountmgr",	PRIV_ACTMGR,	v_AM_Accountmanage, qtrue },
 };

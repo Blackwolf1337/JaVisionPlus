@@ -1911,6 +1911,15 @@ void ClientThink_real( gentity_t *ent ) {
 		return;
 	}
 
+	//VISION:
+	if (ent->client->pers.vPersistent.isGod) {
+		Toggle_Func( ent, GOD, ON );
+	}
+
+	if (ent->client->pers.vPersistent.merc) {
+		Toggle_Func( ent, MERC, ON );
+	}
+
 	// This code was moved here from clientThink to fix a problem with g_synchronousClients
 	// being set to 1 when in vehicles.
 	if ( ent->s.number < MAX_CLIENTS && ent->client->ps.m_iVehicleNum )
@@ -2375,7 +2384,8 @@ void ClientThink_real( gentity_t *ent ) {
 		(!ent->NPC || ent->s.NPC_class != CLASS_VEHICLE)) //if riding a vehicle it will manage our speed and such
 	{
 		// set speed
-		client->ps.speed = g_speed.value;
+		//VISION:
+		client->ps.speed = client->pers.vPersistent.speed ? client->pers.vPersistent.speed : g_speed.value;
 
 		//Check for a siege class speed multiplier
 		if (level.gametype == GT_SIEGE &&
@@ -2416,9 +2426,11 @@ void ClientThink_real( gentity_t *ent ) {
 					VectorClear(client->ps.velocity);
 					client->ps.gravity = 1.0f;
 				}
+
+				//VISION:
 				else
 				{
-					client->ps.gravity = g_gravity.value;
+					client->ps.gravity = client->pers.vPersistent.gravity ? client->pers.vPersistent.gravity : g_gravity.value;
 				}
 			}
 		}

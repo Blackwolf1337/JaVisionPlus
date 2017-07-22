@@ -55,6 +55,9 @@
 #define FORCE 0
 #define MERC 1
 #define GHOST 2
+#define SLEEP 3
+#define GOD 4
+
 
 //Bitfield
 #define PRIV_EMPWR	(0x0000000000000001u)
@@ -62,11 +65,11 @@
 #define PRIV_MERC 	(0x0000000000000004u)
 #define PRIV_NOCLP	(0x0000000000000008u)
 #define PRIV_SLEEP	(0x0000000000000010u)
-#define PRIV_06		(0x0000000000000020u)
-#define PRIV_07		(0x0000000000000040u)
-#define PRIV_08		(0x0000000000000080u)
-#define PRIV_09		(0x0000000000000100u)
-#define PRIV_10		(0x0000000000000200u)
+#define PRIV_FRCTM	(0x0000000000000020u)
+#define PRIV_GIVE	(0x0000000000000040u)
+#define PRIV_GOD	(0x0000000000000080u)
+#define PRIV_GRVTY	(0x0000000000000100u)
+#define PRIV_SPEED	(0x0000000000000200u)
 #define PRIV_11		(0x0000000000000400u)
 #define PRIV_12		(0x0000000000000800u)
 #define PRIV_13		(0x0000000000001000u)
@@ -121,6 +124,7 @@
 #define PRIV_62		(0x2000000000000000u)
 #define PRIV_63		(0x4000000000000000u)
 #define PRIV_ACTMGR	(0x8000000000000000u) // Sollte nicht an Spieler vergeben werden!
+#define PRIV_NONE	(0xBADC0DED)
 
 //g_VISION_utils.c
 #define FINDCL_SUBSTR					(0x0001u)
@@ -164,7 +168,7 @@ typedef struct VisionPersistent_s {
 
 	// saving Gravity for g_active.cpp
 	int gravity;
-	qboolean qgravity;
+	int speed;
 } VisionPersistent_t;
 // ^- in gentity_s
 
@@ -198,11 +202,11 @@ typedef struct accountBin_s {
 
 //Commands unified with admin commands.
 typedef struct VisionCommand_s {
-	const char	*cmd;
-	const char	*identifier;
-	uint64_t	v_privileges;
-	void( *func )( gentity_t *ent );
-	qboolean	v_admin_authorization;
+	const char	*cmd; // command itself (input grabbed from arguments)
+	const char	*identifier; // identifier
+	uint64_t	v_privileges; // privileges
+	void( *func )( gentity_t *ent ); // function pointer
+	qboolean	v_admin_authorization; // admin command y/n?
 } VisionCommand_t;
 
 
@@ -221,20 +225,23 @@ void v_Read_Binary( qboolean silent );	// Need> g_svcmds.c
  * * * * * * * * * * */
 
 char *Q_strrep( const char *subject, const char *search, const char *replace );	// Need> g_VISION_cmds.c
-void Q_ConvertLinefeeds( char *string );	// Need> g_VISION_cmds.c
+void Q_ConvertLinefeeds( char *string ); // Need> g_VISION_cmds.c
 qboolean Q_StringIsInteger( const char * s );
 static qboolean cmpSubCase( const char * s1, const char * s2 ); // START: Gonna clean this up with a switch statement
 static qboolean cmpSub( const char * s1, const char * s2 );  // no need for 1000 of functions
 static qboolean cmpWholeCase( const char * s1, const char * s2 );
 static qboolean cmpWhole( const char * s1, const char * s2 ); // END:
-int G_ClientFromString( const gentity_t * ent, const char * match, uint32_t flags );
+int G_ClientFromString( const gentity_t * ent, const char * match, uint32_t flags ); // Need> g_VISION_cmds.c
+void G_Give( gentity_t *ent, const char *name, const char *args, int argc );
+char *ConcatArgs( int start );
 
 /* * * * * * * * * * * *
  General Admin Functions
  * * * * * * * * * * * */
 
 void AM_Logout( gentity_t *ent ); // for the future (force logout)
-void Cmd_Noclip_f( gentity_t *ent );
+void Cmd_Noclip_f( gentity_t *ent ); // function from the game itself g_cmds.c
+void Toggle_Func( gentity_t *ent, int power, int toggle );
 
 /* * * * * * * * * * * *
 		Struct
