@@ -2620,19 +2620,34 @@ void CheckVote( void ) {
 	if ( !level.voteTime ) {
 		return;
 	}
-	if ( level.time-level.voteTime >= VOTE_TIME || level.voteYes + level.voteNo == 0 ) {
+	//VISION:
+	if ( level.time - level.voteTime >= VOTE_TIME || ( level.voteYes + level.voteNo == 0 && !level.votePoll ) ) {
 		trap->SendServerCommand( -1, va("print \"%s (%s)\n\"", G_GetStringEdString("MP_SVGAME", "VOTEFAILED"), level.voteStringClean) );
 	}
 	else {
-		if ( level.voteYes > level.numVotingClients/2 ) {
+		if ( level.voteYes > level.numVotingClients / 2 ) {
 			// execute the command, then remove the vote
 			trap->SendServerCommand( -1, va("print \"%s (%s)\n\"", G_GetStringEdString("MP_SVGAME", "VOTEPASSED"), level.voteStringClean) );
-			level.voteExecuteTime = level.time + level.voteExecuteDelay;
+			//VISION:
+			if ( !level.votePoll )
+				level.voteExecuteTime = level.time + level.voteExecuteDelay;
 		}
 
 		// same behavior as a timeout
 		else if ( level.voteNo >= (level.numVotingClients+1)/2 )
 			trap->SendServerCommand( -1, va("print \"%s (%s)\n\"", G_GetStringEdString("MP_SVGAME", "VOTEFAILED"), level.voteStringClean) );
+		//VISION:
+		else if ( level.votePoll ) {
+			static int lastPrint = 0;
+			if ( lastPrint < level.time - 5000 ) {
+				char msg[MAX_STRING_CHARS - 128];
+				Com_sprintf( msg, sizeof( msg ), va( "%s\ncalled a poll\n\n%s", level.voteStringPollCreator, level.voteStringPoll ) );
+				trap->SendServerCommand( -1, va("cp \"%s\"", msg ) );
+				trap->Print( "%s\n", msg );
+				lastPrint = level.time;
+			}
+			return;
+		}
 
 		else // still waiting for a majority
 			return;

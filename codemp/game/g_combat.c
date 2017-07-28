@@ -4889,6 +4889,13 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_
 		if ( (targ->flags & FL_GODMODE) && targ->s.eType != ET_NPC ) {
 			return;
 		}
+		
+		//VISION:
+		if (targ && targ->client && targ->client->pers.vPersistent.invulnerableSpecial && attacker && attacker->client && targ != attacker) {
+			targ->client->invulnerableTimer = level.time + 5000;
+			targ->client->ps.eFlags |= EF_INVULNERABLE;
+			return;
+		}
 
 		if (targ && targ->client && (targ->client->ps.eFlags & EF_INVULNERABLE) &&
 			attacker && attacker->client && targ != attacker)

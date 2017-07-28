@@ -1382,7 +1382,7 @@ static void ForceClientSkin( gclient_t *client, char *model, const char *skin ) 
 ClientCheckName
 ============
 */
-static void ClientCleanName( const char *in, char *out, int outSize )
+/*static*/ void ClientCleanName( const char *in, char *out, int outSize )
 {
 	int outpos = 0, colorlessLen = 0, spaces = 0, ats = 0;
 
@@ -2159,6 +2159,14 @@ qboolean ClientUserinfoChanged( int clientNum ) {
 			Q_strncpyz( client->pers.netname_nocolor, oldname, sizeof( client->pers.netname_nocolor ) );
 			Q_StripColor( client->pers.netname_nocolor );
 		}
+
+		//VISION:	
+		else if (client->pers.vPersistent.renamedTime != 0 && client->pers.vPersistent.renamedTime > level.time - (v_renameTime.value * 60.0f) * 1000) {
+			float remaining = v_renameTime.value * 60.0f;
+			remaining -= ( level.time - client->pers.vPersistent.renamedTime ) / 1000.0f;
+			trap->SendServerCommand( clientNum, va( "print \"You are not allowed to change name for another " S_COLOR_CYAN "%.1f " S_COLOR_WHITE "seconds\n\"", remaining ) );
+		}
+
 		else {
 			trap->SendServerCommand( -1, va( "print \"%s" S_COLOR_WHITE " %s %s\n\"", oldname, G_GetStringEdString( "MP_SVGAME", "PLRENAME" ), client->pers.netname ) );
 			G_LogPrintf( "ClientRename: %i [%s] (%s) \"%s^7\" -> \"%s^7\"\n", clientNum, ent->client->sess.IP, ent->client->pers.guid, oldname, ent->client->pers.netname );
@@ -3768,6 +3776,11 @@ void ClientSpawn(gentity_t *ent) {
 			}
 			client->ps.weaponstate = WEAPON_RAISING;
 			client->ps.weaponTime = client->ps.torsoTimer;
+
+			//VISION:
+			if (ent->client->pers.vPersistent.invulnerableSpecial) {
+				ent->client->pers.vPersistent.invulnerableSpecial = qfalse;
+			}
 
 			if (g_spawnInvulnerability.integer)
 			{

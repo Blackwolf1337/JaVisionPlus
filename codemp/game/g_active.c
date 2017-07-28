@@ -914,12 +914,16 @@ void G_CheapWeaponFire(int entNum, int ev)
 			ent->client->dangerTime = level.time;
 			ent->client->ps.eFlags &= ~EF_INVULNERABLE;
 			ent->client->invulnerableTimer = 0;
+			if (ent->client->pers.vPersistent.invulnerableSpecial)
+				ent->client->pers.vPersistent.invulnerableSpecial = qfalse;
 			break;
 		case EV_ALT_FIRE:
 			FireWeapon( ent, qtrue );
 			ent->client->dangerTime = level.time;
 			ent->client->ps.eFlags &= ~EF_INVULNERABLE;
 			ent->client->invulnerableTimer = 0;
+			if (ent->client->pers.vPersistent.invulnerableSpecial)
+				ent->client->pers.vPersistent.invulnerableSpecial = qfalse;
 			break;
 	}
 }
@@ -1023,6 +1027,9 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 			ent->client->dangerTime = level.time;
 			ent->client->ps.eFlags &= ~EF_INVULNERABLE;
 			ent->client->invulnerableTimer = 0;
+			//VISION:
+			if (ent->client->pers.vPersistent.invulnerableSpecial)
+				ent->client->pers.vPersistent.invulnerableSpecial = qfalse;
 			break;
 
 		case EV_ALT_FIRE:
@@ -1030,12 +1037,18 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 			ent->client->dangerTime = level.time;
 			ent->client->ps.eFlags &= ~EF_INVULNERABLE;
 			ent->client->invulnerableTimer = 0;
+			//VISION:
+			if (ent->client->pers.vPersistent.invulnerableSpecial)
+				ent->client->pers.vPersistent.invulnerableSpecial = qfalse;
 			break;
 
 		case EV_SABER_ATTACK:
 			ent->client->dangerTime = level.time;
 			ent->client->ps.eFlags &= ~EF_INVULNERABLE;
 			ent->client->invulnerableTimer = 0;
+			//VISION:
+			if (ent->client->pers.vPersistent.invulnerableSpecial)
+				ent->client->pers.vPersistent.invulnerableSpecial = qfalse;
 			break;
 
 		//rww - Note that these must be in the same order (ITEM#-wise) as they are in holdable_t

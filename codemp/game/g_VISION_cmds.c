@@ -466,7 +466,7 @@ static void AM_God_f( gentity_t *ent ) {
 	gentity_t *targ = NULL;
 
 	if (trap->Argc() < 1) {
-		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1\amgod <client/ID>\n\"" );
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amgod <client/ID>\n\"" );
 		return;
 	}
 
@@ -527,6 +527,51 @@ static void AM_Gravity_f( gentity_t *ent ) {
 	}*/
 
 	targ->client->pers.vPersistent.gravity = atoi( arg2 );
+}
+
+static void AM_Kick_f( gentity_t * ent)  {
+	char arg1[64] = { 0 };
+	const char *reason = "Not specified";
+	int clientNum;
+
+	if ( trap->Argc() == 1 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amkick <client> <reason>\n\"" );
+		return;
+	}
+
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	if ( trap->Argc() > 2 ) {
+		reason = ConcatArgs( 2 );
+	}
+
+	clientNum = G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT );
+
+	if ( clientNum == -1 ) {
+		return;
+	}
+
+	/*if (!AM_CanInflict(ent, &g_entities[clientNum])) {
+		return;
+	}*/
+	trap->DropClient( clientNum, va( "^3kicked ^7for '%s'", reason ) );
+}
+
+static void AM_KillVote_f( gentity_t *ent ) {
+	//Overkill, but it's a surefire way to kill the vote =]
+	level.voteExecuteTime = 0;
+	level.votingGametype = qfalse;
+	level.votingGametypeTo = level.gametype;
+	level.voteTime = 0;
+
+	level.voteDisplayString[0] = '\0';
+	level.voteString[0] = '\0';
+
+	trap->SetConfigstring( CS_VOTE_TIME, "" );
+	trap->SetConfigstring( CS_VOTE_STRING,  "" );
+	trap->SetConfigstring( CS_VOTE_YES, "" );
+	trap->SetConfigstring( CS_VOTE_NO, "" );
+
+	trap->SendServerCommand( -1, "print \"" S_COLOR_RED "Vote has been killed!\n\"" );
 }
 
 // log in using user + pass
@@ -619,6 +664,393 @@ static void AM_Merc_f( gentity_t *ent ) {
 		Toggle_Func( targ, MERC, OFF );
 		//Draw string blehbleh
 	}
+}
+
+static void AM_Notarget_f( gentity_t *ent ) {
+	char arg1[64] = { 0 };
+	gentity_t *targ = NULL;
+	int targetClient = -1;
+
+
+	if ( trap->Argc() < 2 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amnotarget <client/ID>\n\"" );
+		return;
+	}
+
+	// can toggle noclip for partial name or clientNum
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+
+	targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent ? ent - g_entities : -1;
+
+	if ( targetClient == -1 ) {
+		return;
+	}
+
+	targ = &g_entities[targetClient];
+
+	/*if ( !AM_CanInflict( ent, targ ) ) {
+		return;
+	}*/
+
+	Cmd_Notarget_f( targ );
+	
+	trap->LinkEntity( (sharedEntity_t *)targ );
+}
+
+static void AM_NPCSpawn_f( gentity_t *ent ) {
+	
+	if (!ent) {
+		trap->Print( "This command is not available for server console use yet\n" );
+		return;
+	}
+
+	Cmd_NPC_f( ent );
+}
+
+static void AM_Poll_f( gentity_t *ent ) {
+	int i = 0;
+	char arg1[MAX_TOKEN_CHARS] = { 0 }, arg2[MAX_TOKEN_CHARS] = { 0 };
+
+	if (level.voteExecuteTime) {
+		trap->SendServerCommand( ent->s.number, "print \"Vote already in progress.\n\"" );
+		return;
+	}
+
+	if ( trap->Argc() < 2 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Please specify a poll.\n\"" );
+		return;
+	}
+
+	trap->Argv( 0, arg1, sizeof( arg1 ) );
+	Q_strncpyz( level.voteStringPoll, ConcatArgs( 1 ), sizeof( level.voteStringPoll ) );
+	Q_strncpyz( level.voteStringPollCreator, ent ? ent->client->pers.netname_nocolor : "Server", sizeof( level.voteStringPollCreator ) );
+	Q_ConvertLinefeeds(level.voteStringPoll);
+	
+	Q_strncpyz( arg2, ent ? ent->client->pers.netname : "Server", sizeof( arg2 ) );
+	Q_CleanStr( arg2 );
+	Q_strstrip( arg2, "\n\r;\"", NULL );
+
+	Com_sprintf( level.voteString, sizeof( level.voteString ), "%s \"%s\"", arg1, arg2 );
+	Com_sprintf( level.voteDisplayString, sizeof(level.voteDisplayString), "%s", level.voteString );
+	Q_strncpyz( level.voteStringClean, level.voteString, sizeof( level.voteStringClean ) );
+	Q_strstrip( level.voteStringClean, "\"\n\r", NULL );
+
+	trap->SendServerCommand( -1, va( "print \"%s" S_COLOR_WHITE " %s\n\"", ent ? ent->client->pers.netname : "Server", G_GetStringEdString( "MP_SVGAME", "PLCALLEDVOTE" ) ) );
+
+	// still a vote waiting to be executed
+	if ( level.voteExecuteTime ) {
+		level.voteExecuteTime = 0;
+		if ( !level.votePoll ) {
+			trap->SendConsoleCommand( EXEC_APPEND, va( "%s\n", level.voteString ) );
+		}
+	}
+
+	level.voteExecuteDelay = v_voteDelay.integer;
+	level.voteTime = level.time;
+	level.voteYes = 0;
+	level.voteNo = 0;
+	level.votePoll = qtrue;
+	level.votingGametype = qfalse;
+
+	for ( i = 0; i < level.maxclients; i++ ) {
+		level.clients[i].mGameFlags &= ~PSG_VOTED;
+		level.clients[i].pers.vote = 0;
+	}
+
+	trap->SetConfigstring( CS_VOTE_TIME, va( "%i", level.voteTime ) );
+	trap->SetConfigstring( CS_VOTE_STRING, level.voteDisplayString );
+	trap->SetConfigstring( CS_VOTE_YES, va( "%i", level.voteYes ) );
+	trap->SetConfigstring( CS_VOTE_NO, va( "%i", level.voteNo ) );
+}
+
+static void AM_Protect_f( gentity_t *ent ) {
+	char arg1[64] = { 0 };
+	int targetClient;
+	gentity_t *targ;
+
+	// can protect: self, partial name, clientNum
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
+
+	if ( targetClient == -1 ) {
+		return;
+	}
+
+	targ = &g_entities[targetClient];
+
+	/*if (!AM_CanInflict(ent, targ)) {
+		return;
+	}*/
+
+	targ->client->ps.eFlags ^= EF_INVULNERABLE;
+	targ->client->invulnerableTimer = level.time + 5000;
+
+	if (!!(targ->client->ps.eFlags&EF_INVULNERABLE))
+	{
+		targ->client->pers.vPersistent.invulnerableSpecial = qtrue;
+	}
+	else
+	{
+		targ->client->pers.vPersistent.invulnerableSpecial = qfalse;
+	}
+}
+
+static void AM_Psay_f( gentity_t *ent ) {
+	char *msg, arg1[MAX_NETNAME] = { 0 };
+
+	if ( trap->Argc() < 2 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1ampsay <client> <message>\n\"" );
+		return;
+	}
+
+	msg = ConcatArgs( 2 );
+	Q_ConvertLinefeeds( msg );
+
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	if ( arg1[0] == '-' && arg1[1] == '1' ) {
+		// announce to everyone
+		trap->SendServerCommand( -1, "print \"Usage: ^1ampsay <client> <message>\n\"" );
+		if ( ent ) {
+			trap->SendServerCommand( -1, va( "cp \"%s\"", msg ) );
+		}
+	}
+	else {
+		// announce to a certain client
+		const int targetClient = G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT );
+
+		if ( targetClient == -1 ) {
+			return;
+		}
+
+		trap->SendServerCommand( targetClient, va( "cp \"%s\"", msg ) );
+		trap->SendServerCommand( targetClient, va( "print \"%s\n\"", msg ) );
+		if ( ent ) {
+			trap->SendServerCommand( ent - g_entities, va( "cp\"Relay:\n%s\"", msg ) );
+			trap->SendServerCommand( ent - g_entities, va( "print \"Relay:\n%s\n\"", msg ) );
+		}
+	}
+}
+
+static void AM_Remap_f( gentity_t *ent ) {
+	char arg1[128] = { 0 };
+	char arg2[128] = { 0 };
+
+	if ( trap->Argc() < 2)  {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amremap <from> <to>\n\"" );
+		return;
+	}
+	trap->Argv( 1, arg1, sizeof(arg1) );
+	trap->Argv( 2, arg2, sizeof(arg2) );
+
+	AddRemap( arg1, arg2, level.time );
+	trap->SetConfigstring( CS_SHADERSTATE, BuildShaderStateConfig() );
+}
+
+static void AM_Rename_f( gentity_t *ent ) {
+	char arg1[MAX_NETNAME] = { 0 }, arg2[MAX_NETNAME] = { 0 }, oldName[MAX_NETNAME] = { 0 };
+	char info[MAX_INFO_STRING] = { 0 };
+	int targetClient;
+	gentity_t *e = NULL;
+
+	if ( trap->Argc() != 3 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amrename <client> <name>\n\"" );
+		return;
+	}
+
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	trap->Argv( 2, arg2, sizeof( arg2 ) );
+
+	targetClient = G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT );
+	if ( targetClient == -1 ) {
+		return;
+	}
+
+	e = g_entities + targetClient;
+	
+	/*if (!AM_CanInflict(ent, e)) {
+		return;
+	}*/
+
+	Q_strncpyz( oldName, e->client->pers.netname, sizeof( oldName ) );
+	ClientCleanName( arg2, e->client->pers.netname, sizeof( e->client->pers.netname ) );
+
+	if ( !strcmp( oldName, e->client->pers.netname ) ) {
+		return;
+	}
+
+	Q_strncpyz( e->client->pers.netname_nocolor, e->client->pers.netname, sizeof( e->client->pers.netname_nocolor ) );
+	Q_CleanStr( e->client->pers.netname_nocolor );
+
+	// update clientinfo
+	trap->GetConfigstring( CS_PLAYERS + targetClient, info, sizeof( info ) );
+	Info_SetValueForKey( info, "n", e->client->pers.netname );
+	trap->SetConfigstring( CS_PLAYERS + targetClient, info );
+
+	// update userinfo (in engine)
+	trap->GetUserinfo( targetClient, info, sizeof( info ) );
+	Info_SetValueForKey( info, "name", e->client->pers.netname );
+	trap->SetUserinfo( targetClient, info );
+
+	trap->SendServerCommand( -1, va( "print \"%s" S_COLOR_WHITE " has been renamed to %s^7\n\"", oldName, arg2 ) );
+
+	e->client->pers.vPersistent.renamedTime = level.time;
+}
+
+static void AM_Silence_f( gentity_t *ent ) {
+	char arg1[64] = { 0 };
+	int targetClient;
+
+	if ( trap->Argc() < 2 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amsilence <client>\n\"" );
+		return;
+	}
+
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+
+	// silence everyone
+	if ( atoi( arg1 ) == -1 ) {
+		int i;
+		gentity_t *e = NULL;
+		gclient_t *cl = NULL;
+		for (i = 0, e = g_entities, cl = level.clients;
+			i < level.maxclients;
+			i++, e++, cl++)
+		{
+			if ( !e->inuse || cl->pers.connected == CON_DISCONNECTED ) {
+				continue;
+			}
+
+			/*if (!AM_CanInflict(ent, e)) {
+				continue;
+			}*/
+
+			cl->pers.vPersistent.silenced = qtrue;
+		}
+		//Draw string
+		return;
+	}
+
+	targetClient = G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT );
+	if (targetClient == -1) {
+		return;
+	}
+
+	/*if (!AM_CanInflict(ent, &g_entities[targetClient])) {
+		return;
+	}*/
+
+	level.clients[targetClient].pers.vPersistent.silenced = qtrue;
+	//Draw string
+}
+
+void Slap( gentity_t *executor, gentity_t *targ ) {
+	vec3_t newDir = { 0.0f, 0.0f, 0.0f };
+	int i;
+	
+	for ( i = 0; i<2; i++ ) {
+		newDir[i] = ( 2.0f * ( ( rand() & 0x7fff ) / ( (float)0x7fff ) - 0.5f ) );
+		if ( newDir[i] > 0.0f ) {
+			newDir[i] = ceilf( newDir[i] );
+		}
+		else {
+			newDir[i] = floorf( newDir[i] );
+		}
+	}
+	newDir[2] = 1.0f;
+
+	/*if ( targ->client->hook ) {
+		Weapon_HookFree(targ->client->hook);
+	}*/
+
+	G_Knockdown( targ );
+	G_Throw( targ, &newDir, v_slapDistance.value );
+
+	//Draw String
+}
+
+static void AM_Slap_f( gentity_t *ent ) {
+	char arg1[64] = { 0 };
+	int targetClient;
+
+	if ( trap->Argc() != 2 ) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amslap <client>\n\"" );
+		return;
+	}
+
+	//Can slap: partial name, clientNum
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	targetClient = G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT );
+
+	if ( targetClient == -1 ) {
+		return;
+	}
+
+	/*if (!AM_CanInflict(ent, &g_entities[targetClient])) {
+		return;
+	}*/
+
+	Slap( ent, &g_entities[targetClient] );
+}
+
+
+static void AM_Dismember( gentity_t *ent ) {
+	vec3_t boltPoint;
+
+	int i;
+	for ( i = G2_MODELPART_HEAD; i <= G2_MODELPART_RLEG; i++ ) 
+	{
+		if ( i == G2_MODELPART_WAIST )
+			continue;
+		G_GetDismemberBolt( ent, &boltPoint, i );
+		G_Dismember( ent, NULL, &boltPoint, i, 90, 0, ent->client->ps.legsAnim, qfalse );
+	}
+}
+
+static void AM_Slay_f(gentity_t *ent) {
+	char arg1[64] = { 0 };
+	int targetClient;
+	gentity_t *targetEnt = NULL;
+
+	if (trap->Argc() < 2) {
+		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amslay <client>\n\"" );
+		return;
+	}
+
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+
+	if ( atoi( arg1 ) == -1 ) {
+		int i;
+		gentity_t *e;
+		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) {
+			if ( !e->inuse || ent->client->pers.connected == CON_DISCONNECTED || ent->client->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR || ent->client->tempSpectate >= level.time )
+				continue;
+
+			/*if (!AM_CanInflict(ent, e)) {
+				continue;
+			}*/
+
+			Cmd_Kill_f( e );
+		}
+		//Draw string
+		return;
+	}
+
+	targetClient = G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT );
+	targetEnt = g_entities + targetClient;
+
+	if ( targetEnt->client->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR || targetEnt->client->tempSpectate >= level.time )
+		return;
+
+	/*if (!AM_CanInflict(ent, targetEnt)) {
+		return;
+	}*/
+
+	Cmd_Kill_f(targetEnt);
+
+	if ( v_slaydismember.integer )
+		AM_Dismember( targetEnt );
+
+	//Draw String
 }
 
 static void AM_Noclip_f( gentity_t *ent ) {
@@ -726,7 +1158,7 @@ static void AM_Speed_f( gentity_t *ent ) {
 	gentity_t *targ = NULL;
 
 	if (trap->Argc() < 2) {
-		trap->SendServerCommand( ent->s.number, va( "print \"Usage: ^amspeed <client/id> <speed (Default: ^2%s7)>\n\"", g_speed.value ) );
+		trap->SendServerCommand( ent->s.number, va( "print \"Usage: ^1amspeed <client/id> <speed (Default: ^2%s7)>\n\"", g_speed.value ) );
 		return;
 	}
 
@@ -748,6 +1180,41 @@ static void AM_Speed_f( gentity_t *ent ) {
 
 
 	targ->client->pers.vPersistent.speed = atoi( arg2 );
+}
+
+static void AM_Teleport_f( gentity_t *ent ) {
+	vec3_t		origin, angles;
+	char		buffer[MAX_TOKEN_CHARS];
+	char		arg1[64] = { 0 };
+	int			i;
+	int			targetClient;
+	gentity_t	*targ;
+
+	if ( trap->Argc() < 6 ) {
+		trap->SendServerCommand( ent->s.number, va( "print \"Usage: ^1amteleport <client/id> x y z yaw\n\"" ) );
+		return;
+	}
+
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+	targetClient = ( trap->Argc() > 1 ) ? G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT ) : ent - g_entities;
+
+
+	if ( targetClient == -1 ) {
+		return;
+	}
+
+	targ = &g_entities[targetClient];
+
+	VectorClear( angles );
+	for ( i = 1; i < 4; i++ ) {
+		trap->Argv( i + 1, buffer, sizeof( buffer ) );
+		origin[i - 1] = atof(buffer);
+	}
+
+	trap->Argv( 5, buffer, sizeof( buffer ) );
+	angles[YAW] = atof( buffer );
+
+	TeleportPlayer( targ, origin, angles );
 }
 
 static void AM_Wake_f( gentity_t *ent ) {
@@ -820,6 +1287,103 @@ static void AM_Wake_f( gentity_t *ent ) {
 	}
 }
 
+//Ja++ weather code
+
+// weather manipulation
+static const char *weatherEffects[] = {
+	"acidrain",
+	"clear",
+	"constantwind",
+	"die",
+	"fog",
+	"freeze",
+	"gustingwind",
+	"heavyrain",
+	"heavyrainfog",
+	"light_fog",
+	"lightrain",
+	"outsidepain",
+	"outsideshake",
+	"rain",
+	"sand",
+	"snow",
+	"spacedust",
+	"wind",
+	"zone",
+};
+static const size_t numWeatherEffects = ARRAY_LEN(weatherEffects);
+
+static void G_PrintWeatherOptions(gentity_t *ent) {
+	const char **opt = NULL;
+	char buf[256] = { 0 };
+	int toggle = 0;
+	unsigned int count = 0;
+	const unsigned int limit = 72;
+	size_t i;
+
+	Q_strcat(buf, sizeof(buf), "Weather options:\n   ");
+
+	for (i = 0, opt = weatherEffects; i < numWeatherEffects; i++, opt++) {
+		const char *tmpMsg = NULL;
+
+		tmpMsg = va(" ^%c%s", (++toggle & 1 ? COLOR_GREEN : COLOR_YELLOW), *opt);
+
+		//newline if we reach limit
+		if (count >= limit) {
+			tmpMsg = va("\n   %s", tmpMsg);
+			count = 0;
+		}
+
+		if (strlen(buf) + strlen(tmpMsg) >= sizeof(buf)) {
+			if (ent) {
+				trap->SendServerCommand(ent - g_entities, va("print \"%s\"", buf));
+			}
+			else {
+				trap->Print(va("%s\n", buf));
+			}
+			buf[0] = '\0';
+		}
+		count += strlen(tmpMsg);
+		Q_strcat(buf, sizeof(buf), tmpMsg);
+	}
+
+	if (ent) {
+		trap->SendServerCommand(ent - g_entities, va("print \"%s\n\n\"", buf));
+	}
+	else {
+		trap->Print(va("%s\n", buf));
+	}
+}
+
+static int weather_cmdcmp(const void *a, const void *b) {
+	return Q_stricmp((const char *)a, *(const char **)b);
+}
+
+static void AM_Weather_f( gentity_t *ent ) {
+	const char *cmd = NULL, *opt = NULL;
+	static int effectid = 0;
+
+	if ( trap->Argc() == 1 ) {
+		G_PrintWeatherOptions( ent );
+		return;
+	}
+
+	cmd = ConcatArgs(1);
+	trap->Print("%s\n", cmd);
+	opt = (const char *)bsearch(cmd, weatherEffects, numWeatherEffects, sizeof(weatherEffects[0]), weather_cmdcmp);
+	if (!opt) {
+		G_PrintWeatherOptions(ent);
+		return;
+	}
+	if (effectid == 0) {
+		effectid = G_EffectIndex(va("*%s", cmd));
+	}
+	else {
+		trap->SetConfigstring(CS_EFFECTS + effectid, va("*%s", cmd));
+	}
+	//Draw string
+}
+
 void v_AM_Accountmanage( gentity_t *ent, account_t *account ) {
 	//place holder
 }
@@ -830,19 +1394,33 @@ void v_AM_Accountmanage( gentity_t *ent, account_t *account ) {
 // o p q r s t u
 // v w x y z - sort after alphabet
 static const VisionCommand_t VisionCommands[] = {
-	{ "amempower",	"empower",		PRIV_EMPWR,		AM_Empower_f,		qtrue },
-	{ "amforceteam", "forceteam",	PRIV_FRCTM,		AM_ForceTeam_f,		qtrue },
+	{ "amempower",	"empower",		PRIV_EMPOWER,	AM_Empower_f,		qtrue },
+	{ "amforceteam","forceteam",	PRIV_FORCETEAM,	AM_ForceTeam_f,		qtrue },
 	{ "amghost",	"ghost",		PRIV_GHOST,		AM_Ghost_f,			qtrue },
-	{ "amgive",		"v_give",		PRIV_GIVE,		AM_Give_f,			qtrue },
-	{ "amgod",		"v_god",		PRIV_GOD,		AM_God_f,			qtrue },
-	{ "amgravity",  "v_gravity",	PRIV_GRVTY,		AM_Gravity_f,		qtrue },
+	{ "amgive",		"give",			PRIV_GIVE,		AM_Give_f,			qtrue },
+	{ "amgod",		"god",			PRIV_GOD,		AM_God_f,			qtrue },
+	{ "amgravity",  "gravity",		PRIV_GRAVITY,	AM_Gravity_f,		qtrue },
+	{ "amkick",		"kick",			PRIV_KICK,		AM_Kick_f,			qtrue },
+	{ "amkillvote", "killvote",		PRIV_KILLVOTE,	AM_KillVote_f,		qtrue },
 	{ "amlogin",	"x",			PRIV_NONE,		AM_Login,			qfalse },
 	{ "amlogout",	"x",			PRIV_NONE,		AM_Logout,			qfalse },
 	{ "ammerc",		"merc",			PRIV_MERC,		AM_Merc_f,			qtrue },
-	{ "amnoclip",	"v_noclip",		PRIV_NOCLP,		AM_Noclip_f,		qtrue },
+	{ "amnoclip",	"noclip",		PRIV_NOCLIP,	AM_Noclip_f,		qtrue },
+	{ "amnotarget", "notarget",		PRIV_NOTARGET,	AM_Notarget_f,		qtrue },
+	{ "amnpc",		"npc",			PRIV_NPCSP,		AM_NPCSpawn_f,		qtrue },
+	{ "ampoll",		"poll",			PRIV_POLL,		AM_Poll_f,			qtrue },
+	{ "amprotect",	"protect",		PRIV_PROTECT,	AM_Protect_f,		qtrue },
+	{ "ampsay",		"psay",			PRIV_PSAY,		AM_Psay_f,			qtrue },
+	{ "amremap",	"remap",		PRIV_REMAP,		AM_Remap_f,			qtrue },
+	{ "amrename",	"rename",		PRIV_RENAME,	AM_Rename_f,		qtrue },
+	{ "amsilence",	"silence",		PRIV_MUTE,		AM_Silence_f,		qtrue }, 
+	{ "amslap",		"slap",			PRIV_SLAP,		AM_Slap_f,			qtrue }, 
+	{ "amslay",		"slay",			PRIV_SLAY,		AM_Slay_f,			qtrue }, 
 	{ "amsleep",	"sleep",		PRIV_SLEEP,		AM_Sleep_f,			qtrue },
-	{ "amspeed",	"v_speed",		PRIV_SPEED,		AM_Speed_f,			qtrue },
+	{ "amspeed",	"speed",		PRIV_SPEED,		AM_Speed_f,			qtrue },
+	{ "amteleport", "teleport",		PRIV_TELEPORT,	AM_Teleport_f,		qtrue },
 	{ "amwake",		"wake",			PRIV_SLEEP,		AM_Wake_f,			qtrue },
+	{ "amweather",	"weather",		PRIV_WEATHER,	AM_Weather_f,		qtrue },
 	{ "v_account",	"accountmgr",	PRIV_ACTMGR,	v_AM_Accountmanage, qtrue },
 };
 static const size_t numVisionCommands = ARRAY_LEN( VisionCommands );
@@ -862,7 +1440,7 @@ qboolean v_HandleCommands( gentity_t *ent, const char *cmd ) {
 	VisionCommand_t *command = NULL;
 	
 	if (ent == NULL) { // call from console or anything else (which shouldn't happen)
-		command = (VisionCommand_t *)bsearch(cmd, VisionCommands, numVisionCommands, sizeof(VisionCommands[0]), v_cmdcmp);
+		command = (VisionCommand_t *)bsearch( cmd, VisionCommands, numVisionCommands, sizeof(VisionCommands[0]), v_cmdcmp );
 		if (command) {
 			command->func(NULL);
 			return qtrue;

@@ -1668,6 +1668,11 @@ void ForceLightningDamage( gentity_t *self, gentity_t *traceEnt, vec3_t dir, vec
 	self->client->dangerTime = level.time;
 	self->client->ps.eFlags &= ~EF_INVULNERABLE;
 	self->client->invulnerableTimer = 0;
+	
+	//VISION:
+	if (self->client->pers.vPersistent.invulnerableSpecial)
+		self->client->pers.vPersistent.invulnerableSpecial = qfalse;
+
 
 	if ( traceEnt && traceEnt->takedamage )
 	{
@@ -1916,6 +1921,10 @@ void ForceDrainDamage( gentity_t *self, gentity_t *traceEnt, vec3_t dir, vec3_t 
 	self->client->dangerTime = level.time;
 	self->client->ps.eFlags &= ~EF_INVULNERABLE;
 	self->client->invulnerableTimer = 0;
+
+	//VISION:
+	if (self->client->pers.vPersistent.invulnerableSpecial)
+		self->client->pers.vPersistent.invulnerableSpecial = qfalse;
 
 	if ( traceEnt && traceEnt->takedamage )
 	{
@@ -3670,6 +3679,10 @@ void ForceThrow( gentity_t *self, qboolean pull )
 	self->client->ps.eFlags &= ~EF_INVULNERABLE;
 	self->client->invulnerableTimer = 0;
 
+	//VISION:
+	if (self->client->pers.vPersistent.invulnerableSpecial)
+		self->client->pers.vPersistent.invulnerableSpecial = qfalse;
+
 	if (self->client->ps.fd.forceGripBeingGripped > level.time)
 	{
 		self->client->ps.fd.forceGripBeingGripped = 0;
@@ -3813,6 +3826,10 @@ void DoGripAction(gentity_t *self, forcePowers_t forcePower)
 	self->client->dangerTime = level.time;
 	self->client->ps.eFlags &= ~EF_INVULNERABLE;
 	self->client->invulnerableTimer = 0;
+	
+	//VISION:
+	if (self->client->pers.vPersistent.invulnerableSpecial)
+		self->client->pers.vPersistent.invulnerableSpecial = qfalse;
 
 	gripEnt = &g_entities[self->client->ps.fd.forceGripEntityNum];
 

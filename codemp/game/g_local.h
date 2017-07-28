@@ -934,6 +934,10 @@ typedef struct level_locals_s {
 	int			voteExecuteDelay;		// set per-vote
 	int			voteYes;
 	int			voteNo;
+	//VISION: needed by ja++ functions
+	qboolean	votePoll;
+	char		voteStringPoll[MAX_STRING_CHARS];
+	char		voteStringPollCreator[MAX_NETNAME];
 	int			numVotingClients;		// set by CalculateRanks
 
 	qboolean	votingGametype;

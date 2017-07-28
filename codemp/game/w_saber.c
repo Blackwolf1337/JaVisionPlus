@@ -8701,6 +8701,9 @@ nextStep:
 				self->client->dangerTime = level.time;
 				self->client->ps.eFlags &= ~EF_INVULNERABLE;
 				self->client->invulnerableTimer = 0;
+				//VISION:
+				if (self->client->pers.vPersistent.invulnerableSpecial)
+					self->client->pers.vPersistent.invulnerableSpecial = qfalse;
 
 				trap->LinkEntity((sharedEntity_t *)saberent);
 			}

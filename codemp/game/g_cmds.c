@@ -1583,6 +1583,9 @@ void G_Say( gentity_t *ent, gentity_t *target, int mode, const char *chatText ) 
 		mode = SAY_ALL;
 	}
 
+	if ( ent->client->pers.vPersistent.silenced )
+		return;
+
 	Q_strncpyz( text, chatText, sizeof(text) );
 
 	Q_strstrip( text, "\n\r", "  " );
@@ -2242,7 +2245,9 @@ validVote:
 	// there is still a vote to be executed, execute it and store the new vote
 	if ( level.voteExecuteTime ) {
 		level.voteExecuteTime = 0;
-		trap->SendConsoleCommand( EXEC_APPEND, va( "%s\n", level.voteString ) );
+		//VISION:
+		if( !level.votePoll )
+			trap->SendConsoleCommand( EXEC_APPEND, va( "%s\n", level.voteString ) );
 	}
 
 	// pass the args onto vote-specific handlers for parsing/filtering
@@ -2264,6 +2269,8 @@ validVote:
 	level.voteTime = level.time;
 	level.voteYes = 1;
 	level.voteNo = 0;
+	//VISION:
+	level.votePoll = qfalse;
 
 	for ( i=0; i<level.maxclients; i++ ) {
 		level.clients[i].mGameFlags &= ~PSG_VOTED;
