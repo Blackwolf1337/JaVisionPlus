@@ -237,7 +237,7 @@ static qboolean cmpWhole( const char * s1, const char * s2 ); // END:
 int G_ClientFromString( const gentity_t * ent, const char * match, uint32_t flags ); // Need> g_VISION_cmds.c --- replace with ClientNumberFromString ?
 void ClientCleanName( const char *in, char *out, int outSize );
 void G_Give( gentity_t *ent, const char *name, const char *args, int argc );
-void G_Knockdown( gentity_t *victim );
+//void G_Knockdown( gentity_t *victim );
 void G_GetDismemberBolt( gentity_t *self, vec3_t boltPoint, int limbType );
 void G_Dismember( gentity_t *ent, gentity_t *enemy, vec3_t point, int limbType, float limbRollBase, float limbPitchBase, int deathAnim, qboolean postDeath );
 char *ConcatArgs( int start );

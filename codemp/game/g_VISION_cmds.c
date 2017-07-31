@@ -943,6 +943,7 @@ static void AM_Silence_f( gentity_t *ent ) {
 	//Draw string
 }
 
+void G_Knockdown(gentity_t *victim);
 void Slap( gentity_t *executor, gentity_t *targ ) {
 	vec3_t newDir = { 0.0f, 0.0f, 0.0f };
 	int i;
