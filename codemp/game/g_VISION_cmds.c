@@ -369,7 +369,7 @@ static void AM_ForceTeam_f(gentity_t *ent) {
 	}*/
 
 	if ( targ->inuse && targ->client && targ->client->pers.connected ) {
-		SetTeam( targ, arg2, qtrue );
+		SetTeam( targ, arg2 );
 	}
 }
 
