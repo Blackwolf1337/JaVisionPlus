@@ -1,11 +1,12 @@
 #include "g_local.h"
 
-/* Copied from Ja++ source q_shared.cpp, g_utils.cpp 
-   I do not take any credits for this.  */
+// A collection of utility functions, to make life easier
+// copied from Ja++ source q_shared.cpp, g_utils.cpp 
+// I am not the author nor I take credits for the listed functions below.
+
+
 // replace strings in a string
 // caller must free the return value
-
-
 char *Q_strrep( const char *subject, const char *search, const char *replace ) {
 	char *tok = NULL, *newstr = NULL;
 	size_t searchLen, replaceLen;
@@ -136,7 +137,7 @@ int G_ClientFromString( const gentity_t *ent, const char *match, uint32_t flags 
 	Q_strncpyz( cleanedMatch, match, sizeof( cleanedMatch ) );
 	Q_StripColor( cleanedMatch );
 
-	if (firstMatch) {
+	if ( firstMatch ) {
 		for (i = 0, e = g_entities; i < level.maxclients; i++, e++) {
 			if (compareFunc(e->client->pers.netname_nocolor, cleanedMatch) && e->inuse
 				&& e->client->pers.connected != CON_DISCONNECTED) {
@@ -188,4 +189,46 @@ int G_ClientFromString( const gentity_t *ent, const char *match, uint32_t flags 
 		}
 	}
 	return -1;
+}
+
+void Q_NewPrintBuffer( printBufferSession_t *session, size_t length, void( *callback )( const char *buffer, int clientNum ), int clientNum ) {
+	memset( session, 0, sizeof( *session ) );
+	session->buffer = (char *)malloc( length );
+	session->buffer[0] = '\0';
+	session->length = 0u;
+	session->maxLength = length;
+	session->callback = callback;
+	session->clientNum = clientNum;
+}
+
+void Q_PrintBuffer( printBufferSession_t *session, const char *append ) {
+	const size_t appendLen = strlen( append );
+	if ( session->length + appendLen >= session->maxLength ) {
+		if ( session->callback ) {
+			session->callback( session->buffer, session->clientNum );
+		}
+		session->length = 0u;
+		session->buffer[0] = '\0';
+	}
+	session->length += appendLen;
+	Q_strcat( session->buffer, session->maxLength, append );
+}
+
+void Q_DeletePrintBuffer( printBufferSession_t *session ) {
+	if ( session->callback ) {
+		session->callback( session->buffer, session->clientNum );
+	}
+	if ( session->buffer ) {
+		free( session->buffer );
+		session->buffer = NULL;
+	}
+}
+
+void PB_Callback( const char *buffer, int clientNum ) {
+	if ( clientNum == -1 ) {
+		trap->Print( buffer );
+	}
+	else {
+		trap->SendServerCommand( clientNum, va( "print \"%s\"", buffer ) );
+	}
 }

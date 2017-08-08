@@ -84,8 +84,8 @@
 #define PRIV_SLAY		(0x0000000000200000u)
 #define PRIV_TELEPORT	(0x0000000000400000u)
 #define PRIV_WEATHER	(0x0000000000800000u)
-#define PRIV_25			(0x0000000001000000u)
-#define PRIV_26			(0x0000000002000000u)
+#define PRIV_VSTR		(0x0000000001000000u)
+#define PRIV_WHOIS		(0x0000000002000000u)
 #define PRIV_27			(0x0000000004000000u)
 #define PRIV_28			(0x0000000008000000u)
 #define PRIV_29			(0x0000000010000000u)
@@ -217,6 +217,23 @@ typedef struct VisionCommand_s {
 	Main Mod Functions
  * * * * * * * * * * * */
 
+#define EXTINFO_CMDS	(0x0001u)
+#define EXTINFO_CLIENT	(0x0002u)
+#define EXTINFO_ADMIN   (0x0004u)
+#define EXTINFO_ALL		(0x0007u)
+
+static struct amInfoSetting_s {
+	const char *str;
+	uint32_t bit;
+} aminfoSettings[] = {
+	{ "all", EXTINFO_ALL },
+	//{ "saber", EXTINFO_SABER },
+	{ "cmds", EXTINFO_CMDS },
+	{ "client", EXTINFO_CLIENT },
+	{ "admin", EXTINFO_ADMIN },
+};
+static const size_t numAminfoSettings = ARRAY_LEN(aminfoSettings);
+
 void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg );	// Need> g_svcmds.c
 int  v_Account_Delete( char *user );	// Need> g_svcmds.c
 qboolean v_HandleCommands( gentity_t *ent, const char *cmd );	// Need> g_cmds.c
@@ -227,17 +244,24 @@ void v_Read_Binary( qboolean silent );	// Need> g_svcmds.c
 	   Utilities
  * * * * * * * * * * */
 
+typedef struct printBufferSession_s {
+	size_t length, maxLength;
+	char *buffer;
+	void( *callback )( const char *buffer, int clientNum );
+	int clientNum;
+} printBufferSession_t;
+
 char *Q_strrep( const char *subject, const char *search, const char *replace );	// Need> g_VISION_cmds.c
 void Q_ConvertLinefeeds( char *string ); // Need> g_VISION_cmds.c
 qboolean Q_StringIsInteger( const char * s );
-static qboolean cmpSubCase( const char * s1, const char * s2 ); // START: Gonna clean this up with a switch statement
-static qboolean cmpSub( const char * s1, const char * s2 );  // no need for 1000 of functions
-static qboolean cmpWholeCase( const char * s1, const char * s2 );
-static qboolean cmpWhole( const char * s1, const char * s2 ); // END:
 int G_ClientFromString( const gentity_t * ent, const char * match, uint32_t flags ); // Need> g_VISION_cmds.c --- replace with ClientNumberFromString ?
+void Q_NewPrintBuffer( printBufferSession_t * session, size_t length, void( *callback )( const char *buffer, int clientNum ), int clientNum );
+void Q_PrintBuffer( printBufferSession_t * session, const char * append );
+void Q_DeletePrintBuffer( printBufferSession_t * session );
+void PB_Callback( const char * buffer, int clientNum );
 void ClientCleanName( const char *in, char *out, int outSize );
 void G_Give( gentity_t *ent, const char *name, const char *args, int argc );
-//void G_Knockdown( gentity_t *victim );
+//void G_Knockdown( gentity_t *victim ); // linux no like????
 void G_GetDismemberBolt( gentity_t *self, vec3_t boltPoint, int limbType );
 void G_Dismember( gentity_t *ent, gentity_t *enemy, vec3_t point, int limbType, float limbRollBase, float limbPitchBase, int deathAnim, qboolean postDeath );
 char *ConcatArgs( int start );

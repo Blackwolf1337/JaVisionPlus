@@ -237,6 +237,8 @@ void G_Give( gentity_t *ent, const char *name, const char *args, int argc )
 	{
 		for ( i=0; i<HI_NUM_HOLDABLE; i++ )
 			ent->client->ps.stats[STAT_HOLDABLE_ITEMS] |= (1 << i);
+		for (i = AMMO_BLASTER; i < AMMO_MAX; i++)
+			ent->client->ps.ammo[i] = SHRT_MAX;
 	}
 
 	if ( give_all || !Q_stricmp( name, "health") )
@@ -284,6 +286,10 @@ void G_Give( gentity_t *ent, const char *name, const char *args, int argc )
 	if ( give_all || !Q_stricmp( name, "weapons" ) )
 	{
 		ent->client->ps.stats[STAT_WEAPONS] = (1 << (LAST_USEABLE_WEAPON+1)) - ( 1 << WP_NONE );
+		
+		for (i = AMMO_BLASTER; i < AMMO_MAX; i++)
+			ent->client->ps.ammo[i] = SHRT_MAX;
+
 		if ( !give_all )
 			return;
 	}
@@ -291,14 +297,17 @@ void G_Give( gentity_t *ent, const char *name, const char *args, int argc )
 	if ( !give_all && !Q_stricmp( name, "weaponnum" ) )
 	{
 		ent->client->ps.stats[STAT_WEAPONS] |= (1 << atoi( args ));
+		i = AMMO_BLASTER;
+		if ( i < AMMO_MAX )
+			ent->client->ps.ammo[i] = SHRT_MAX;
 		return;
 	}
 
 	if ( give_all || !Q_stricmp( name, "ammo" ) )
 	{
-		int num = 999;
+		int num = SHRT_MAX;
 		if ( argc == 3 )
-			num = Com_Clampi( 0, 999, atoi( args ) );
+			num = Com_Clampi( 0, SHRT_MAX, atoi( args ) );
 		for ( i=AMMO_BLASTER; i<AMMO_MAX; i++ )
 			ent->client->ps.ammo[i] = num;
 		if ( !give_all )

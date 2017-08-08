@@ -529,7 +529,7 @@ static void AM_Gravity_f( gentity_t *ent ) {
 	targ->client->pers.vPersistent.gravity = atoi( arg2 );
 }
 
-static void AM_Kick_f( gentity_t * ent)  {
+static void AM_Kick_f( gentity_t *ent )  {
 	char arg1[64] = { 0 };
 	const char *reason = "Not specified";
 	int clientNum;
@@ -554,6 +554,99 @@ static void AM_Kick_f( gentity_t * ent)  {
 		return;
 	}*/
 	trap->DropClient( clientNum, va( "^3kicked ^7for '%s'", reason ) );
+}
+
+void AM_PrintCommands(gentity_t *ent, printBufferSession_t *pb);
+static void AM_Info_f( gentity_t *ent ) {
+	int extendedInfo = 0;
+	printBufferSession_t pb;
+
+	Q_NewPrintBuffer(&pb, MAX_STRING_CHARS /*/ 2*/, PB_Callback, ent - g_entities);
+
+	Q_PrintBuffer(&pb, S_COLOR_YELLOW "================================================================"
+		S_COLOR_WHITE "\n\n");
+
+	if (trap->Argc() < 2) {
+		unsigned int i = 0;
+		Q_PrintBuffer(&pb, "Try 'aminfo <category>' for more detailed information\nCategories: ^1");
+
+		// print all categories
+		for (i = 0; i < numAminfoSettings; i++) {
+			if (i) {
+				Q_PrintBuffer(&pb, "^7, ^1");
+			}
+			Q_PrintBuffer(&pb, aminfoSettings[i].str);
+		}
+
+		//From the old VisionPlugin
+		//PrintFile(&pb);
+
+		Q_PrintBuffer(&pb, "\n\n");
+	}
+	else {
+		char arg[8] = { 0 };
+		unsigned int i = 0;
+
+		trap->Argv(1, arg, sizeof(arg));
+
+		// find out which category they want
+		for (i = 0; i < numAminfoSettings; i++) {
+			if (!Q_stricmp(arg, aminfoSettings[i].str)) {
+				extendedInfo = aminfoSettings[i].bit;
+				break;
+			}
+		}
+	}
+
+	// mod version + compile date
+	if (!extendedInfo || extendedInfo == EXTINFO_ALL) {
+		char version[256] = { 0 };
+		trap->Cvar_VariableStringBuffer("version", version, sizeof(version));
+		Q_PrintBuffer(&pb, "Version:\n    Gamecode: JaVision+ (" ARCH_STRING ") -  " __DATE__ ", " __TIME__ "\n");
+		Q_PrintBuffer(&pb, va("    Engine: %s\n\n", version));
+	}
+
+	if (extendedInfo & EXTINFO_ADMIN) {
+		// admin commands
+		AM_PrintCommands( ent, &pb );
+	}
+
+	if (extendedInfo & EXTINFO_CMDS) {
+		// regular commands
+		//G_PrintCommands(ent, &pb);
+	}
+
+	/*if (extendedInfo & EXTINFO_CLIENT) {
+		// client support flags
+		int i = 0;
+
+		Q_PrintBuffer(&pb, va("Client support flags: 0x%X\n", ent->client->pers.CSF));
+		for (i = 0; i < CSF_NUM; i++) {
+			if (ent->client->pers.CSF & (1 << i)) {
+				Q_PrintBuffer(&pb, " [X] ");
+			}
+			else {
+				Q_PrintBuffer(&pb, " [ ] ");
+			}
+			Q_PrintBuffer(&pb, va("%s\n", supportFlagNames[i]));
+		}
+
+		//RAZTODO: cp_pluginDisable?
+		Q_PrintBuffer(&pb, va("Client plugin disabled: %i\n", ent->client->pers.CPD));
+		for (i = 0; i < CPD_NUM; i++) {
+			if (ent->client->pers.CPD & (1 << i)) {
+				Q_PrintBuffer(&pb, " [X] ");
+			}
+			else {
+				Q_PrintBuffer(&pb, " [ ] ");
+			}
+			Q_PrintBuffer(&pb, va("%s\n", clientPluginDisableNames[i]));
+		}
+	}*/
+
+	Q_PrintBuffer(&pb, S_COLOR_YELLOW "================================================================\n");
+
+	Q_DeletePrintBuffer(&pb);
 }
 
 static void AM_KillVote_f( gentity_t *ent ) {
@@ -624,7 +717,13 @@ void AM_Login( gentity_t *ent ) {
 
 
 void AM_Logout( gentity_t *ent ) {
-	trap->SendServerCommand( ent->s.number, "print \"Logout recognized.\n\"" );
+	gentity_t *e;
+	int i;
+
+	ent->client->pers.vPersistent.isTag = qfalse;
+	ent->client->pers.account = NULL;
+	trap->SendServerCommand( ent->s.number, "print \"You have logged out\n\"");
+
 }
 
 static void AM_Merc_f( gentity_t *ent ) {
@@ -870,7 +969,6 @@ static void AM_Rename_f( gentity_t *ent ) {
 	/*if (!AM_CanInflict(ent, e)) {
 		return;
 	}*/
-
 	Q_strncpyz( oldName, e->client->pers.netname, sizeof( oldName ) );
 	ClientCleanName( arg2, e->client->pers.netname, sizeof( e->client->pers.netname ) );
 
@@ -879,7 +977,7 @@ static void AM_Rename_f( gentity_t *ent ) {
 	}
 
 	Q_strncpyz( e->client->pers.netname_nocolor, e->client->pers.netname, sizeof( e->client->pers.netname_nocolor ) );
-	Q_CleanStr( e->client->pers.netname_nocolor );
+	Q_StripColor( e->client->pers.netname_nocolor );
 
 	// update clientinfo
 	trap->GetConfigstring( CS_PLAYERS + targetClient, info, sizeof( info ) );
@@ -1218,6 +1316,67 @@ static void AM_Teleport_f( gentity_t *ent ) {
 	TeleportPlayer( targ, origin, angles );
 }
 
+static void AM_Unsilence_f(gentity_t *ent) {
+	char arg1[64] = { 0 };
+	int targetClient;
+
+	if (trap->Argc() < 2) {
+		trap->SendServerCommand(ent->s.number, "print \"Usage: ^1amunsilence <client>\n\"");
+		return;
+	}
+
+	trap->Argv( 1, arg1, sizeof( arg1 ) );
+
+	// unsilence everyone
+	if ( atoi( arg1 ) == -1 ) {
+		int i;
+		gentity_t *e;
+		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) {
+			if ( !e->inuse || ent->client->pers.connected == CON_DISCONNECTED ) {
+				continue;
+			}
+
+			/*if ( !AM_CanInflict( ent, e ) ) {
+				continue;
+			}*/
+
+			level.clients[i].pers.vPersistent.silenced = qfalse;
+		}
+		//Draw string
+		return;
+	}
+
+	targetClient = G_ClientFromString( ent, arg1, FINDCL_SUBSTR | FINDCL_PRINT );
+	if ( targetClient == -1 ) {
+		return;
+	}
+	
+	/*if (!AM_CanInflict(ent, &g_entities[targetClient])) {
+		return;
+	}*/
+
+	level.clients[targetClient].pers.vPersistent.silenced = qfalse;
+	//Draw string
+}
+
+static void AM_Vstr_f( gentity_t *ent ) {
+	char *args = NULL;
+	const char *filter = NULL;
+
+	if ( !ent ) {
+		trap->Print( "This command is not available for server console use yet\n" );
+		return;
+	}
+
+	args = ConcatArgs(1);
+
+	if ( (filter = Q_strchrs( args, ";\n ") ) != NULL ) {
+		args[filter - args] = '\0';
+	}
+
+	trap->SendConsoleCommand( EXEC_APPEND, va( "vstr %s\n", args ) );
+}
+
 static void AM_Wake_f( gentity_t *ent ) {
 	char arg1[MAX_NETNAME] = { 0 };
 	int clientNum;
@@ -1314,7 +1473,7 @@ static const char *weatherEffects[] = {
 };
 static const size_t numWeatherEffects = ARRAY_LEN(weatherEffects);
 
-static void G_PrintWeatherOptions(gentity_t *ent) {
+static void G_PrintWeatherOptions( gentity_t *ent ) {
 	const char **opt = NULL;
 	char buf[256] = { 0 };
 	int toggle = 0;
@@ -1322,42 +1481,42 @@ static void G_PrintWeatherOptions(gentity_t *ent) {
 	const unsigned int limit = 72;
 	size_t i;
 
-	Q_strcat(buf, sizeof(buf), "Weather options:\n   ");
+	Q_strcat( buf, sizeof( buf ), "Weather options:\n   " );
 
 	for (i = 0, opt = weatherEffects; i < numWeatherEffects; i++, opt++) {
 		const char *tmpMsg = NULL;
 
-		tmpMsg = va(" ^%c%s", (++toggle & 1 ? COLOR_GREEN : COLOR_YELLOW), *opt);
+		tmpMsg = va( " ^%c%s", ( ++toggle & 1 ? COLOR_GREEN : COLOR_YELLOW ), *opt );
 
 		//newline if we reach limit
-		if (count >= limit) {
-			tmpMsg = va("\n   %s", tmpMsg);
+		if ( count >= limit ) {
+			tmpMsg = va( "\n   %s", tmpMsg );
 			count = 0;
 		}
 
-		if (strlen(buf) + strlen(tmpMsg) >= sizeof(buf)) {
-			if (ent) {
-				trap->SendServerCommand(ent - g_entities, va("print \"%s\"", buf));
+		if ( strlen( buf ) + strlen( tmpMsg ) >= sizeof( buf ) ) {
+			if ( ent ) {
+				trap->SendServerCommand( ent - g_entities, va( "print \"%s\"", buf ) );
 			}
 			else {
-				trap->Print(va("%s\n", buf));
+				trap->Print( va( "%s\n", buf ) );
 			}
 			buf[0] = '\0';
 		}
-		count += strlen(tmpMsg);
-		Q_strcat(buf, sizeof(buf), tmpMsg);
+		count += strlen( tmpMsg );
+		Q_strcat( buf, sizeof( buf ), tmpMsg );
 	}
 
-	if (ent) {
-		trap->SendServerCommand(ent - g_entities, va("print \"%s\n\n\"", buf));
+	if ( ent ) {
+		trap->SendServerCommand( ent - g_entities, va("print \"%s\n\n\"", buf ) );
 	}
 	else {
-		trap->Print(va("%s\n", buf));
+		trap->Print( va( "%s\n", buf ) );
 	}
 }
 
-static int weather_cmdcmp(const void *a, const void *b) {
-	return Q_stricmp((const char *)a, *(const char **)b);
+static int weather_cmdcmp( const void *a, const void *b ) {
+	return Q_stricmp( (const char *)a, *(const char **)b );
 }
 
 static void AM_Weather_f( gentity_t *ent ) {
@@ -1369,20 +1528,60 @@ static void AM_Weather_f( gentity_t *ent ) {
 		return;
 	}
 
-	cmd = ConcatArgs(1);
-	trap->Print("%s\n", cmd);
-	opt = (const char *)bsearch(cmd, weatherEffects, numWeatherEffects, sizeof(weatherEffects[0]), weather_cmdcmp);
-	if (!opt) {
-		G_PrintWeatherOptions(ent);
+	cmd = ConcatArgs( 1 );
+	trap->Print( "%s\n", cmd );
+	opt = (const char *)bsearch( cmd, weatherEffects, numWeatherEffects, sizeof( weatherEffects[0] ), weather_cmdcmp );
+	if ( !opt ) {
+		G_PrintWeatherOptions( ent );
 		return;
 	}
-	if (effectid == 0) {
-		effectid = G_EffectIndex(va("*%s", cmd));
+	if ( effectid == 0 ) {
+		effectid = G_EffectIndex( va( "*%s", cmd ) );
 	}
 	else {
-		trap->SetConfigstring(CS_EFFECTS + effectid, va("*%s", cmd));
+		trap->SetConfigstring( CS_EFFECTS + effectid, va( "*%s", cmd ) );
 	}
 	//Draw string
+}
+
+// display list of admins
+static void AM_WhoIs_f( gentity_t *ent ) {
+	int i;
+	gentity_t *e = NULL;
+	printBufferSession_t pb;
+
+	Q_NewPrintBuffer(&pb, MAX_STRING_CHARS /*/ 1.5*/, PB_Callback, ent ? (ent - g_entities) : -1);
+
+	//TODO: optimal spacing
+	Q_PrintBuffer(&pb, "Listing admins...\n");
+	Q_PrintBuffer(&pb, "Name                                Admin User                      Rank\n");
+	for (i = 0, e = g_entities; i < level.maxclients; i++,	e++) {
+		if (e->client->pers.account) {
+			char strName[MAX_NETNAME] = { 0 },
+				 strAdmin[32] = { 0 },
+				 strRank[32] = { 0 };
+
+			Q_strncpyz( strName, e->client->pers.netname, sizeof( strName ) );
+			Q_CleanStr( strName );
+			Q_strncpyz( strAdmin, e->client->pers.account ? e->client->pers.account->v_User : "", sizeof( strAdmin ) );
+			Q_CleanStr( strAdmin );
+			/*if (e->client->pers.account->isCustomRank == 1)
+			{
+				Com_sprintf(strRank, sizeof(strRank), "%d^7:%s^7", e->client->pers.account->rank, e->client->pers.account->customRank);
+			}
+			else
+			{
+				Com_sprintf(strRank, sizeof(strRank), "%d^7:%s^7", e->client->pers.adminUser->rank,
+					e->client->pers.adminUser->rank < ADMIN_MAX ?
+					adminRanks[e->client->pers.adminUser->rank].c_str() : "");
+			}*/
+			Com_sprintf( strRank, sizeof( strRank ), e->client->pers.account->v_rank );
+
+			Q_PrintBuffer(&pb, va("%-36s^7%-32s^7%-12s\n", strName, strAdmin, strRank));
+		}
+	}
+
+	Q_DeletePrintBuffer(&pb);
 }
 
 void v_AM_Accountmanage( gentity_t *ent, account_t *account ) {
@@ -1401,6 +1600,7 @@ static const VisionCommand_t VisionCommands[] = {
 	{ "amgive",		"give",			PRIV_GIVE,		AM_Give_f,			qtrue },
 	{ "amgod",		"god",			PRIV_GOD,		AM_God_f,			qtrue },
 	{ "amgravity",  "gravity",		PRIV_GRAVITY,	AM_Gravity_f,		qtrue },
+	{ "aminfo",		"info",			PRIV_NONE,		AM_Info_f,			qfalse },
 	{ "amkick",		"kick",			PRIV_KICK,		AM_Kick_f,			qtrue },
 	{ "amkillvote", "killvote",		PRIV_KILLVOTE,	AM_KillVote_f,		qtrue },
 	{ "amlogin",	"x",			PRIV_NONE,		AM_Login,			qfalse },
@@ -1420,8 +1620,11 @@ static const VisionCommand_t VisionCommands[] = {
 	{ "amsleep",	"sleep",		PRIV_SLEEP,		AM_Sleep_f,			qtrue },
 	{ "amspeed",	"speed",		PRIV_SPEED,		AM_Speed_f,			qtrue },
 	{ "amteleport", "teleport",		PRIV_TELEPORT,	AM_Teleport_f,		qtrue },
+	{ "amunsilence", "unsilence",	PRIV_MUTE,		AM_Unsilence_f,		qtrue },
+	{ "amvstr",		"vstr",			PRIV_VSTR,		AM_Vstr_f,			qtrue },
 	{ "amwake",		"wake",			PRIV_SLEEP,		AM_Wake_f,			qtrue },
 	{ "amweather",	"weather",		PRIV_WEATHER,	AM_Weather_f,		qtrue },
+	{ "amwhois",	"whois",		PRIV_WHOIS,		AM_WhoIs_f,			qtrue },
 	{ "v_account",	"accountmgr",	PRIV_ACTMGR,	v_AM_Accountmanage, qtrue },
 };
 static const size_t numVisionCommands = ARRAY_LEN( VisionCommands );
@@ -1433,6 +1636,78 @@ static int v_cmdcmp( const void *a, const void *b) {
 	return Q_stricmp( (const char *)a, ((VisionCommand_t*)b)->cmd );
 }
 
+//Author: Ja++
+//Even though mildly modified.
+qboolean AM_HasPrivilege( const gentity_t *ent, uint64_t privilege, qboolean authrequired ) {
+	account_t *user = ent->client->pers.account;
+
+	if ( !authrequired ) {
+		return qtrue;
+	}
+
+	else if ( (user && ( user->v_privileges & privilege ) ) ) {
+		return qtrue;
+	}
+
+	return qfalse;
+}
+
+void AM_PrintCommands( gentity_t *ent, printBufferSession_t *pb ) {
+	const VisionCommand_t *command = NULL;
+	account_t *user = ent->client->pers.account;
+	int toggle = 0;
+	unsigned int count = 0;
+	const unsigned int limit = 102;
+	size_t i;
+
+	Q_PrintBuffer(pb, "^5[^3JaVision+^5] ^7commands:\n ");
+
+	/*if (!user) {
+		Q_PrintBuffer(pb, " " S_COLOR_RED "Unavailable " S_COLOR_WHITE "\n\n");
+		return;
+	}*/
+
+	for (i = 0, command = VisionCommands; i < numVisionCommands; i++, command++) {
+		if (AM_HasPrivilege(ent, command->v_privileges, command->v_admin_authorization)) {
+
+			/*if (ent->client->pers.account)
+			{*/
+
+				const unsigned int limit = 92;
+
+				if (i < 10)
+				{
+					const char *tmpMsg = va("" S_COLOR_RED "0%d ^%c%-16s", i, (++toggle & 1 ? COLOR_GREEN : COLOR_YELLOW), command->cmd);
+
+					if (count >= limit) {
+						tmpMsg = va("   \n %-18s", tmpMsg);
+						count = 0;
+					}
+
+					count += strlen(tmpMsg);
+					Q_PrintBuffer(pb, tmpMsg);
+				}
+				else
+				{
+					const char *tmpMsg = va("" S_COLOR_RED "%d ^%c%-16s", i, (++toggle & 1 ? COLOR_GREEN : COLOR_YELLOW), command->cmd);
+
+					//newline if we reach limit
+					if (count >= limit) {
+						tmpMsg = va("   \n %-18s", tmpMsg);
+						count = 0;
+					}
+
+					count += strlen(tmpMsg);
+					Q_PrintBuffer(pb, tmpMsg);
+				}
+
+			//}
+		}
+	}
+
+	Q_PrintBuffer(pb, S_COLOR_WHITE "\n\n");
+}
+
 //Author: Ja++ ?
 // handle admin related commands.
 // return true if the command exists and/or everything was handled fine.
@@ -1440,7 +1715,7 @@ static int v_cmdcmp( const void *a, const void *b) {
 qboolean v_HandleCommands( gentity_t *ent, const char *cmd ) {
 	VisionCommand_t *command = NULL;
 	
-	if (ent == NULL) { // call from console or anything else (which shouldn't happen)
+	if ( ent == NULL ) { // call from console or anything else (which shouldn't happen)
 		command = (VisionCommand_t *)bsearch( cmd, VisionCommands, numVisionCommands, sizeof(VisionCommands[0]), v_cmdcmp );
 		if (command) {
 			command->func(NULL);
@@ -1454,7 +1729,12 @@ qboolean v_HandleCommands( gentity_t *ent, const char *cmd ) {
 	}
 
 	//Authorization Check
-	// * * * Place Holder * * *
+	else if ( !AM_HasPrivilege( ent, command->v_privileges, command->v_admin_authorization ) ) {
+		trap->SendServerCommand( ent->s.number, "print \"^5[^3JaVision+^5]^7: Insufficient privileges / Not logged in.\n\"" );
+		return qtrue;
+	}
+
+
 
 	command->func( ent );
 	return qtrue;
