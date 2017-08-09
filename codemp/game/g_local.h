@@ -668,6 +668,9 @@ struct gclient_s {
 
 	qboolean	fireHeld;			// used for hook
 	gentity_t	*hook;				// grapple hook if out
+	//VISION:
+	int			lastHookTime;
+	qboolean	hookHasBeenFired;
 
 	int			switchTeamTime;		// time the player switched teams
 
@@ -1127,6 +1130,8 @@ void	G_MuteSound( int entnum, int channel );
 void	G_Sound( gentity_t *ent, int channel, int soundIndex );
 void	G_SoundAtLoc( vec3_t loc, int channel, int soundIndex );
 void	G_EntitySound( gentity_t *ent, int channel, int soundIndex );
+//VISION:
+void	G_SoundEntityE( gentity_t *ent, int channel, int soundIndex );
 void	TryUse( gentity_t *ent );
 void	G_SendG2KillQueue(void);
 void	G_KillG2Queue(int entNum);
@@ -1220,6 +1225,9 @@ void G_ExplodeMissile( gentity_t *ent );
 
 void WP_FireBlasterMissile( gentity_t *ent, vec3_t start, vec3_t dir, qboolean altFire );
 
+// VISION:
+gentity_t *fire_grapple( gentity_t *self, vec3_t *start, vec3_t *dir );
+
 
 //
 // g_mover.c
@@ -1280,6 +1288,11 @@ qboolean LogAccuracyHit( gentity_t *target, gentity_t *attacker );
 void CalcMuzzlePoint ( gentity_t *ent, const vec3_t inForward, const vec3_t inRight, const vec3_t inUp, vec3_t muzzlePoint );
 void SnapVectorTowards( vec3_t v, vec3_t to );
 qboolean CheckGauntletAttack( gentity_t *ent );
+// VISION:
+void Weapon_GrapplingHook_Fire( gentity_t *ent );
+void Weapon_HookFree( gentity_t *ent );
+void Weapon_HookThink( gentity_t *ent );
+gentity_t *fire_grapple( gentity_t *self, vec3_t *start, vec3_t *dir );
 
 
 //

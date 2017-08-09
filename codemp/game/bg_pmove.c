@@ -52,6 +52,9 @@ extern saberInfo_t *BG_MySaber( int clientNum, int saberNum );
 pmove_t		*pm;
 pml_t		pml;
 
+//VISION:
+vmCvar_t v_slideOnHead;
+
 bgEntity_t *pm_entSelf = NULL;
 bgEntity_t *pm_entVeh = NULL;
 
@@ -1059,12 +1062,15 @@ static void PM_Friction( void ) {
 		}
 	}
 
+	// VISION:
+	
 	// apply water friction even if just wading
 	if ( pm->waterlevel ) {
 		drop += speed*pm_waterfriction*pm->waterlevel*pml.frametime;
 	}
+	// VISION:
 	// If on a client then there is no friction
-	else if ( pm->ps->groundEntityNum < MAX_CLIENTS )
+	else if ( !(v_slideOnHead.uinteger & 1) && pm->ps->groundEntityNum < MAX_CLIENTS )
 	{
 		drop = 0;
 	}
@@ -3264,6 +3270,129 @@ static void PM_AirMove( void ) {
 		PM_StepSlideMove( qtrue );
 	}
 }
+
+static void PM_GrappleMove(void) {
+	vec3_t vel = { 0.0f };
+	vec3_t v = { 0.0f };
+	vec3_t facingFwd, facingRight, facingAngles;
+	float vLen = 0.0f;
+	int	anim = -1;
+	float dotR, dotF;
+
+	VectorScale(&pml.forward, -16, &v);
+	VectorAdd(&pm->ps->lastHitLoc, &v, &v);
+	VectorSubtract(&v, &pm->ps->origin, &vel);
+	vLen = VectorLength(&vel);
+	VectorNormalize(&vel);
+
+	if (vLen <= 100.0f)
+		VectorScale(&vel, 10 * vLen, &vel);
+	else
+		VectorScale(&vel, 800, &vel);
+
+	VectorCopy(&vel, &pm->ps->velocity);
+
+	pml.groundPlane = qfalse;
+
+	VectorSet(&facingAngles, 0, pm->ps->viewangles[1], 0);
+
+	AngleVectors(&facingAngles, &facingFwd, &facingRight, NULL);
+	dotR = DotProduct(&facingRight, &pm->ps->velocity);
+	dotF = DotProduct(&facingFwd, &pm->ps->velocity);
+
+	if (fabsf(dotR) > fabsf(dotF) * 1.5f) {
+		if (dotR > 150) {
+			anim = BOTH_FORCEJUMPRIGHT1;
+		}
+		else if (dotR < -150) {
+			anim = BOTH_FORCEJUMPLEFT1;
+		}
+	}
+	else {
+		if (dotF > 150) {
+			anim = BOTH_FORCEJUMP1;
+		}
+		else if (dotF < -150) {
+			anim = BOTH_FORCEJUMPBACK1;
+		}
+	}
+	if (anim != -1) {
+		int parts = SETANIM_BOTH;
+		if (pm->ps->weaponTime) {//FIXME: really only care if we're in a saber attack anim...
+			parts = SETANIM_LEGS;
+		}
+
+		PM_SetAnim(parts, anim, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD, 150);
+	}
+}
+
+void PM_GrappleSwing(void) {
+	vec3_t dist;
+	vec3_t facingFwd, facingRight, facingAngles;
+	int	anim = -1;
+	float dotR, dotF;
+	float length, length2;
+
+	VectorSubtract(&pm->ps->lastHitLoc, &pml.previous_origin, &dist);
+
+	length = VectorLength(&dist);
+
+	if (length > 0.0f) {
+		float	Unknown1, Unknown2;
+		vec3_t	UnknownVec;
+
+		VectorSubtract(&pm->ps->lastHitLoc, &pm->ps->origin, &dist);
+		length2 = VectorLength(&dist);
+		VectorNormalize(&dist);
+
+		Unknown1 = pm->ps->gravity * length2 / length * pml.frametime;
+
+		VectorScale(&dist, Unknown1, &UnknownVec);
+		VectorAdd(&UnknownVec, &pm->ps->velocity, &UnknownVec);
+
+		Unknown2 = UnknownVec[2]*dist[2] + UnknownVec[1] *dist[1] + UnknownVec[0]*dist[0];
+		pm->ps->velocity[0] = -Unknown2 * dist[0] + UnknownVec[0];
+		pm->ps->velocity[1] = -Unknown2 * dist[1] + UnknownVec[1];
+		pm->ps->velocity[2] = -Unknown2 * dist[2] + UnknownVec[2];
+	}
+
+	pml.groundPlane = qfalse;
+
+	//RAZTODO: Play animation, similar to force jump animation playing
+	//	sub_2001AB20();
+
+	VectorSet(&facingAngles, 0, pm->ps->viewangles[1], 0);
+
+	AngleVectors(&facingAngles, &facingFwd, &facingRight, NULL);
+	dotR = DotProduct(&facingRight, &pm->ps->velocity);
+	dotF = DotProduct(&facingFwd, &pm->ps->velocity);
+
+	if (fabsf(dotR) > fabsf(dotF) * 1.5f) {
+		if (dotR > 150) {
+			anim = BOTH_FORCEJUMPRIGHT1;
+		}
+		else if (dotR < -150) {
+			anim = BOTH_FORCEJUMPLEFT1;
+		}
+	}
+	else {
+		if (dotF > 150) {
+			anim = BOTH_FORCEJUMP1;
+		}
+		else if (dotF < -150) {
+			anim = BOTH_FORCEJUMPBACK1;
+		}
+	}
+	if (anim != -1) {
+		int parts = SETANIM_BOTH;
+		if (pm->ps->weaponTime) {//FIXME: really only care if we're in a saber attack anim...
+			parts = SETANIM_LEGS;
+		}
+
+		PM_SetAnim(parts, anim, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD, 150);
+	}
+}
+
 
 /*
 ===================
@@ -10881,10 +11010,12 @@ void PmoveSingle (pmove_t *pmove) {
 		pm_entSelf->s.NPC_class!=CLASS_VEHICLE&&
 		pm_entSelf->s.NPC_class!=CLASS_RANCOR&&
 		pm->ps->groundEntityNum < ENTITYNUM_WORLD &&
-		pm->ps->groundEntityNum >= MAX_CLIENTS)
+		pm->ps->groundEntityNum >= MAX_CLIENTS &&
+		!(v_slideOnHead.uinteger & 2))
 	{ //I am a player client, not riding on a vehicle, and potentially standing on an NPC
 		bgEntity_t *pEnt = PM_BGEntForNum(pm->ps->groundEntityNum);
 
+		//VISION:
 		if (pEnt && pEnt->s.eType == ET_NPC &&
 			pEnt->s.NPC_class != CLASS_VEHICLE) //don't bounce on vehicles
 		{ //this is actually an NPC, let's try to bounce of its head to make sure we can't just stand around on top of it.
@@ -11050,7 +11181,20 @@ void PmoveSingle (pmove_t *pmove) {
 		{
 			if (pm->ps->pm_flags & PMF_TIME_WATERJUMP) {
 				PM_WaterJumpMove();
-			} else if ( pm->waterlevel > 1 ) {
+			} 
+			
+			// VISION:
+			else if ((pm->ps->pm_flags & PMF_GRAPPLE_PULL) && (pm->cmd.buttons & BUTTON_GRAPPLE)) {
+				PM_GrappleMove();
+				PM_AirMove();
+			}
+
+			else if ((pm->ps->eFlags & EF_GRAPPLE_SWING) && !(pm->cmd.buttons & BUTTON_WALKING)) {
+				PM_AirMove();
+				PM_GrappleSwing();
+			}
+			
+			else if ( pm->waterlevel > 1 ) {
 				// swimming
 				PM_WaterMove();
 			} else if ( pml.walking ) {

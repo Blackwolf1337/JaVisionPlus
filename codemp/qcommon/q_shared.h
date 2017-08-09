@@ -768,6 +768,7 @@ typedef struct vmCvar_s {
 	int			modificationCount;
 	float		value;
 	int			integer;
+	uint32_t	uinteger;
 	char		string[MAX_CVAR_VALUE_STRING];
 } vmCvar_t;
 
@@ -1375,6 +1376,9 @@ typedef struct siegePers_s
 #define BUTTON_FORCE_LIGHTNING	1024
 
 #define BUTTON_FORCE_DRAIN		2048
+
+//VISION:
+#define BUTTON_GRAPPLE			4096
 
 // Here's an interesting bit.  The bots in TA used buttons to do additional gestures.
 // I ripped them out because I didn't want too many buttons given the fact that I was already adding some for JK2.

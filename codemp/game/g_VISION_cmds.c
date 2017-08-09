@@ -228,9 +228,9 @@ void Toggle_Func( gentity_t *ent, int power, int toggle ) {
 		{
 		case ON:
 			ent->client->pers.vPersistent.isSlept = qtrue;
-			/*if (cl->hook) {
-			Weapon_HookFree(cl->hook);
-			}*/
+			if ( ent->client->hook ) {
+			Weapon_HookFree( ent->client->hook );
+			}
 			BG_ClearRocketLock( &ent->client->ps );
 			VectorClear( &ent->client->ps.velocity);
 			ent->client->ps.forceHandExtend = HANDEXTEND_KNOCKDOWN;
@@ -908,7 +908,6 @@ static void AM_Psay_f( gentity_t *ent ) {
 	trap->Argv( 1, arg1, sizeof( arg1 ) );
 	if ( arg1[0] == '-' && arg1[1] == '1' ) {
 		// announce to everyone
-		trap->SendServerCommand( -1, "print \"Usage: ^1ampsay <client> <message>\n\"" );
 		if ( ent ) {
 			trap->SendServerCommand( -1, va( "cp \"%s\"", msg ) );
 		}
@@ -1057,9 +1056,9 @@ void Slap( gentity_t *executor, gentity_t *targ ) {
 	}
 	newDir[2] = 1.0f;
 
-	/*if ( targ->client->hook ) {
-		Weapon_HookFree(targ->client->hook);
-	}*/
+	if ( targ->client->hook ) {
+		Weapon_HookFree( targ->client->hook );
+	}
 
 	G_Knockdown( targ );
 	G_Throw( targ, &newDir, v_slapDistance.value );
@@ -1129,6 +1128,9 @@ static void AM_Slay_f(gentity_t *ent) {
 			}*/
 
 			Cmd_Kill_f( e );
+
+			if (v_slaydismember.integer)
+				AM_Dismember(targetEnt);
 		}
 		//Draw string
 		return;

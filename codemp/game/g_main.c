@@ -1258,6 +1258,12 @@ void MoveClientToIntermission( gentity_t *ent ) {
 	ent->s.loopIsSoundset = qfalse;
 	ent->s.event = 0;
 	ent->r.contents = 0;
+
+	// VISION:
+	// remove grapple
+	if (ent->client->hook) {
+		Weapon_HookFree(ent->client->hook);
+	}
 }
 
 /*

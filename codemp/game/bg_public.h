@@ -458,6 +458,8 @@ extern int bgForcePowerCost[NUM_FORCE_POWERS][NUM_FORCE_POWER_LEVELS];
 #define PMF_FOLLOW			4096	// spectate following another player
 #define PMF_SCOREBOARD		8192	// spectate as a scoreboard
 #define PMF_STUCK_TO_WALL	16384	// grabbing a wall
+//VISION:
+#define PMF_GRAPPLE_PULL	32768
 
 #define	PMF_ALL_TIMES	(PMF_TIME_WATERJUMP|PMF_TIME_LAND|PMF_TIME_KNOCKBACK)
 
@@ -633,9 +635,9 @@ typedef enum {
 
 #define	EF_TALK					(1<<13)		// draw a talk balloon
 #define	EF_CONNECTION			(1<<14)		// draw a connection trouble sprite
-#define	EF_NOT_USED_6			(1<<15)		// not used
+#define	EF_ALT_DIM				(1<<15)		// VISION:
 
-#define	EF_NOT_USED_2			(1<<16)		// not used
+#define	EF_GRAPPLE_SWING		(1<<16)		// VISION:
 #define	EF_NOT_USED_3			(1<<17)		// not used
 #define	EF_NOT_USED_4			(1<<18)		// not used
 

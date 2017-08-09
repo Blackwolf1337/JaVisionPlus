@@ -3393,8 +3393,53 @@ void ClientThink_real( gentity_t *ent ) {
 
 	SendPendingPredictableEvents( &ent->client->ps );
 
-	if ( !( ent->client->ps.eFlags & EF_FIRING ) ) {
-		client->fireHeld = qfalse;		// for grapple
+	//VISION:
+	if (ent->s.eType != ET_NPC && ent->client && ent->client->pers.connected == CON_CONNECTED
+		&& !!(v_Hook.integer))
+	{
+		/*const bool saberBusy = PM_SaberInStart( ent->client->ps.saberMove )
+		|| BG_SaberInAttack( ent->client->ps.saberMove )
+		|| PM_SaberInReturn( ent->client->ps.saberMove )
+		|| PM_SaberInTransition( ent->client->ps.saberMove );*/
+		/*const qboolean oldGrapple = GetCPD((bgEntity_t *)ent, CPD_OLDGRAPPLE)
+			|| !Client_Supports(ent, CSF_GRAPPLE_SWING);*/
+		const qboolean pullGrapple = !!(ent->client->pers.cmd.buttons & BUTTON_GRAPPLE);
+		const qboolean releaseGrapple = !!(ent->client->pers.cmd.buttons & BUTTON_USE);
+
+		/*if ( ent->client->hook && pullGrapple
+		&& (saberBusy
+		|| ent->client->ps.duelInProgress
+		|| ent->client->ps.forceHandExtend != HANDEXTEND_NONE) )
+		{
+		Weapon_HookFree( ent->client->hook );
+		}
+		*/
+
+		if (!ent->client->hook && pullGrapple && ent->client->ps.pm_type != PM_DEAD
+			&& ent->client->lastHookTime <= level.time - v_HookDelay.integer
+			/*&& !saberBusy*/)
+		{
+			Weapon_GrapplingHook_Fire(ent);
+		}
+
+		if (ent->client->hook && ent->client->hook->inuse) {
+			if ((releaseGrapple && ent->client->hookHasBeenFired && !ent->client->fireHeld)
+				/*|| (oldGrapple && !pullGrapple && ent->client->hook)*/
+				|| (!pullGrapple && ent->client->fireHeld && ent->client->hookHasBeenFired))
+			{
+				Weapon_HookFree(ent->client->hook);
+			}
+			else if (ent->client->hookHasBeenFired && !ent->client->fireHeld) {
+				if (pullGrapple) {
+					ent->client->ps.pm_flags |= PMF_GRAPPLE_PULL;
+					ent->client->ps.eFlags &= ~EF_GRAPPLE_SWING;
+				}
+				else {
+					ent->client->ps.eFlags |= EF_GRAPPLE_SWING;
+					ent->client->ps.pm_flags &= ~PMF_GRAPPLE_PULL;
+				}
+			}
+		}
 	}
 
 	// use the snapped origin for linking so it matches client predicted versions

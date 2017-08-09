@@ -3560,6 +3560,62 @@ void WP_FireMelee( gentity_t *ent, qboolean alt_fire )
 ////////////////////////////////////////////////////////////////////////////
 
 
+//VISION:
+void Weapon_GrapplingHook_Fire(gentity_t *ent) {
+	AngleVectors(&ent->client->ps.viewangles, &forward, &vright, &up);
+	CalcMuzzlePoint(ent, &forward, &vright, &up, &muzzle);
+	if (!ent->client->fireHeld && !ent->client->hook) {
+		ent->client->hook = fire_grapple( ent, &muzzle, &forward );
+	}
+	G_SoundEntityE(ent, CHAN_WEAPON, G_SoundIndex("sound/weapons/blaster/reflect1.mp3"));
+
+	ent->client->fireHeld = qtrue;
+	ent->client->hookHasBeenFired = qtrue;
+	ent->client->lastHookTime = level.time;
+}
+
+void Weapon_HookFree(gentity_t *hook) {
+	if (!hook) {
+		assert(!"Weapon_HookFree: NULL hook");
+		return;
+	}
+
+	if (!hook->parent) {
+		assert(!"Weapon_HookFree: NULL hook->parent");
+		return;
+	}
+
+	if (!hook->parent->client) {
+		assert(!"Weapon_HookFree: NULL hook->parent->client");
+		return;
+	}
+
+	hook->parent->client->fireHeld = qfalse;
+	hook->parent->client->hookHasBeenFired = qfalse;
+	hook->parent->client->hook = NULL;
+	hook->parent->client->ps.pm_flags &= ~PMF_GRAPPLE_PULL;
+	hook->parent->client->ps.eFlags &= ~EF_GRAPPLE_SWING;
+	G_FreeEntity(hook);
+}
+
+void Weapon_HookThink(gentity_t *ent) {
+	if (ent->enemy) {
+		vec3_t v, oldorigin;
+		int i;
+
+		VectorCopy(&ent->r.currentOrigin, &oldorigin);
+
+		for (i = 0; i < 3; i++) {
+			v[i] = ent->enemy->r.currentOrigin[i] + (ent->enemy->r.mins[i] + ent->enemy->r.maxs[i]) * 0.5f;
+		}
+		SnapVectorTowards(&v, &oldorigin); // Save net bandwidth
+
+		G_SetOrigin(ent, &v);
+	}
+
+	VectorCopy(&ent->r.currentOrigin, &ent->parent->client->ps.lastHitLoc);
+}
+
 /*
 ======================
 SnapVectorTowards

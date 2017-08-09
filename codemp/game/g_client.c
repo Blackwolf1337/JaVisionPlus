@@ -1222,6 +1222,13 @@ void SiegeRespawn(gentity_t *ent);
 void ClientRespawn( gentity_t *ent ) {
 	MaintainBodyQueue(ent);
 
+	// VISION:
+	if ( ent->client->hook ) {
+		// make sure hook is removed, SHOULD BE DONE BEFORE THIS
+		assert( !"respawn(): grapple hook was not removed" );
+		Weapon_HookFree( ent->client->hook );
+	}
+
 	if (gEscaping || level.gametype == GT_POWERDUEL)
 	{
 		ent->client->sess.sessionTeam = TEAM_SPECTATOR;
@@ -3975,6 +3982,12 @@ void ClientDisconnect( int clientNum ) {
 		// They don't get to take powerups with them!
 		// Especially important for stuff like CTF flags
 		TossClientItems( ent );
+	}
+
+	// VISION:
+	// kill grapple
+	if ( ent->client->hook ) {
+		Weapon_HookFree( ent->client->hook );
 	}
 
 	G_LogPrintf( "ClientDisconnect: %i [%s] (%s) \"%s^7\"\n", clientNum, ent->client->sess.IP, ent->client->pers.guid, ent->client->pers.netname );

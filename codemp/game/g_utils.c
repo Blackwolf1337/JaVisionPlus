@@ -1394,6 +1394,37 @@ void G_SoundAtLoc( vec3_t loc, int channel, int soundIndex ) {
 	te->s.saberEntityNum = channel;
 }
 
+//VISION:
+void G_SoundEntityE(gentity_t *ent, int channel, int soundIndex) {
+	gentity_t *te;
+
+	assert(soundIndex);
+
+	te = G_TempEntity(&ent->r.currentOrigin, EV_ENTITY_SOUND/*, channel*/);
+	te->s.eventParm = soundIndex;
+	te->s.clientNum = ent->s.number;
+	te->s.trickedentindex = channel;
+
+	// let the client remember the index of the player entity so he can kill the most recent sound on request
+	if (ent && ent->client && channel > TRACK_CHANNEL_NONE) {
+		if (g_entities[ent->client->ps.fd.killSoundEntIndex[channel - 50]].inuse && ent->client->ps.fd.killSoundEntIndex[channel - 50] > MAX_CLIENTS) {
+			G_MuteSound(ent->client->ps.fd.killSoundEntIndex[channel - 50], CHAN_VOICE);
+
+			if (ent->client->ps.fd.killSoundEntIndex[channel - 50] > MAX_CLIENTS &&
+				g_entities[ent->client->ps.fd.killSoundEntIndex[channel - 50]].inuse)
+				G_FreeEntity(&g_entities[ent->client->ps.fd.killSoundEntIndex[channel - 50]]);
+			ent->client->ps.fd.killSoundEntIndex[channel - 50] = 0;
+		}
+
+		ent->client->ps.fd.killSoundEntIndex[channel - 50] = te->s.number;
+		te->s.trickedentindex = ent->s.number;
+		te->s.eFlags = EF_SOUNDTRACKER;
+		//Raz: Looping sound fixed so all players get information about it, which can be needed later
+		te->r.svFlags |= SVF_BROADCAST;
+		te->freeAfterEvent = qtrue;
+	}
+}
+
 /*
 =============
 G_EntitySound

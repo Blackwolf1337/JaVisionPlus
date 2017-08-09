@@ -2403,6 +2403,12 @@ extern void RunEmplacedWeapon( gentity_t *ent, usercmd_t **ucmd );
 	//Make sure the jetpack is turned off.
 	Jetpack_Off(self);
 
+	// VISION:
+	// remove grapple
+	if ( self->client->hook ) {
+		Weapon_HookFree( self->client->hook );
+	}
+
 	self->client->ps.heldByClient = 0;
 	self->client->beingThrown = 0;
 	self->client->doingThrow = 0;
