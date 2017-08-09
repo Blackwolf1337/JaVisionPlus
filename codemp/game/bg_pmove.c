@@ -3322,7 +3322,7 @@ static void PM_GrappleMove(void) {
 			parts = SETANIM_LEGS;
 		}
 
-		PM_SetAnim(parts, anim, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD, 150);
+		PM_SetAnim(parts, anim, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD);
 	}
 }
 
@@ -3389,7 +3389,7 @@ void PM_GrappleSwing(void) {
 			parts = SETANIM_LEGS;
 		}
 
-		PM_SetAnim(parts, anim, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD, 150);
+		PM_SetAnim(parts, anim, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD);
 	}
 }
 
