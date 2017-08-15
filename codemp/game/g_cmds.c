@@ -421,6 +421,37 @@ void Cmd_God_f( gentity_t *ent ) {
 	trap->SendServerCommand( ent-g_entities, va( "print \"%s\n\"", msg ) );
 }
 
+/*
+==================
+Cmd_Jetpack_f
+
+Gives the Client a jetpack
+
+argv(0) jetpack
+==================
+*/
+static void Cmd_Jetpack_f(gentity_t *ent) {
+	const gitem_t *item = BG_FindItemForHoldable(HI_JETPACK);
+
+	if (ent->client->ps.duelInProgress || !(v_allowJetpack.uinteger & (1 << level.gametype))) {
+		return;
+	}
+
+	if (ent->client->jetPackOn) {
+		Jetpack_Off(ent);
+	}
+
+	ent->client->ps.stats[STAT_HOLDABLE_ITEMS] ^= (1 << item->giTag);
+
+	if (ent->client->ps.stats[STAT_HOLDABLE_ITEMS] &= 1 << item->giTag)
+	{
+		ent->client->pers.jetpack = qtrue;
+	}
+	else
+	{
+		ent->client->pers.jetpack = qfalse;
+	}
+}
 
 /*
 ==================

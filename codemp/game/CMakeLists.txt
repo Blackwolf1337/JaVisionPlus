@@ -139,6 +139,7 @@ set(MPGameGameFiles
 	"${MPDir}/game/g_xcvar.h"
 	"${MPDir}/game/inv.h"
 	"${MPDir}/game/jp_cinfo.h"
+	"${MPDir}/game/jp_csflags.h"
 	"${MPDir}/game/match.h"
 	"${MPDir}/game/npc_headers.h"
 	"${MPDir}/game/say.h"

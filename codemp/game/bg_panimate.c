@@ -207,6 +207,30 @@ qboolean BG_InReboundRelease( int anim )
 	return qfalse;
 }
 
+// VISION:
+qboolean BG_InLedgeMove( int anim ) {
+	switch ( anim ) {
+	case BOTH_LEDGE_GRAB:
+	case BOTH_LEDGE_HOLD:
+	case BOTH_LEDGE_LEFT:
+	case BOTH_LEDGE_RIGHT:
+	case BOTH_LEDGE_MERCPULL:
+		return qtrue;
+	default:
+		return qfalse;
+	}
+}
+
+qboolean In_LedgeIdle( int anim ) {
+	switch ( anim ) {
+	case BOTH_LEDGE_GRAB:
+	case BOTH_LEDGE_HOLD:
+		return qtrue;
+	default:
+		return qfalse;
+	}
+}
+
 qboolean BG_InBackFlip( int anim )
 {
 	switch ( anim )
@@ -2779,12 +2803,12 @@ void BG_SetAnimFinal(playerState_t *ps, animation_t *animations,
 	if (setAnimParts & SETANIM_TORSO)
 	{
 		// Don't reset if it's already running the anim
-		if( !(setAnimFlags & SETANIM_FLAG_RESTART) && (ps->torsoAnim) == anim )
+		if(!(setAnimFlags & SETANIM_FLAG_RESTART) && !(setAnimFlags & SETANIM_FLAG_PACE) && (ps->torsoAnim) == anim )
 		{
 			goto setAnimLegs;
 		}
 		// or if a more important anim is running
-		if( !(setAnimFlags & SETANIM_FLAG_OVERRIDE) && ((ps->torsoTimer > 0)||(ps->torsoTimer == -1)) )
+		if( (((setAnimFlags & SETANIM_FLAG_PACE) && (ps->torsoAnim) == anim) || !(setAnimFlags & SETANIM_FLAG_OVERRIDE)) && ((ps->torsoTimer > 0)||(ps->torsoTimer == -1)) )
 		{
 			goto setAnimLegs;
 		}
@@ -2826,13 +2850,14 @@ setAnimLegs:
 	// Set legs anim
 	if (setAnimParts & SETANIM_LEGS)
 	{
+		// VISION:
 		// Don't reset if it's already running the anim
-		if( !(setAnimFlags & SETANIM_FLAG_RESTART) && (ps->legsAnim) == anim )
+		if( !(setAnimFlags & SETANIM_FLAG_RESTART) && !(setAnimFlags & SETANIM_FLAG_PACE) && (ps->legsAnim) == anim )
 		{
 			goto setAnimDone;
 		}
 		// or if a more important anim is running
-		if( !(setAnimFlags & SETANIM_FLAG_OVERRIDE) && ((ps->legsTimer > 0)||(ps->legsTimer == -1)) )
+		if( (((setAnimFlags & SETANIM_FLAG_PACE) && (ps->legsAnim) == anim) || !(setAnimFlags & SETANIM_FLAG_OVERRIDE)) && ((ps->legsTimer > 0)||(ps->legsTimer == -1)) )
 		{
 			goto setAnimDone;
 		}
@@ -2997,3 +3022,42 @@ void PM_SetAnim(int setAnimParts,int anim,int setAnimFlags)
 	BG_SetAnim(pm->ps, pm->animations, setAnimParts, anim, setAnimFlags);
 }
 
+// VISION:
+//Get the point in the animation and return a percentage of the current point in the anim between 0 and the total anim length (0.0f - 1.0f)
+//This function assumes that your animation timer is set to the exact length of the animation
+float BG_GetTorsoAnimPoint(playerState_t *ps, int AnimIndex) {
+	float attackAnimLength = 0;
+	float currentPoint = 0;
+	float animSpeedFactor = 1.0f;
+
+	//Be sure to scale by the proper anim speed just as if we were going to play the animation
+	BG_SaberStartTransAnim(ps->clientNum, ps->fd.saberAnimLevel, ps->weapon, ps->torsoAnim, &animSpeedFactor, ps->brokenLimbs);
+
+	if (animSpeedFactor > 0) {
+		attackAnimLength = (bgAllAnims[AnimIndex].anims[ps->torsoAnim].numFrames - 1) * fabsf((float)(bgAllAnims[AnimIndex].anims[ps->torsoAnim].frameLerp)) * (1 / animSpeedFactor);
+		attackAnimLength--;
+	}
+
+	currentPoint = ps->torsoTimer;
+
+	return currentPoint / attackAnimLength;
+}
+
+
+float BG_GetLegsAnimPoint(playerState_t *ps, int AnimIndex) {
+	float attackAnimLength = 0;
+	float currentPoint = 0;
+	float animSpeedFactor = 1.0f;
+
+	//Be sure to scale by the proper anim speed just as if we were going to play the animation
+	BG_SaberStartTransAnim(ps->clientNum, ps->fd.saberAnimLevel, ps->weapon, ps->legsAnim, &animSpeedFactor, ps->brokenLimbs);
+
+	if (animSpeedFactor > 0) {
+		attackAnimLength = (bgAllAnims[AnimIndex].anims[ps->legsAnim].numFrames - 1) * fabsf((float)(bgAllAnims[AnimIndex].anims[ps->legsAnim].frameLerp)) * (1 / animSpeedFactor);
+		attackAnimLength--;
+	}
+
+	currentPoint = ps->legsTimer;
+
+	return currentPoint / attackAnimLength;
+}

@@ -768,6 +768,7 @@ typedef struct vmCvar_s {
 	int			modificationCount;
 	float		value;
 	int			integer;
+	uint32_t	uinteger;
 	char		string[MAX_CVAR_VALUE_STRING];
 } vmCvar_t;
 

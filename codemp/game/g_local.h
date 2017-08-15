@@ -515,6 +515,8 @@ typedef struct clientPersistant_s {
 
 	account_t *account;
 	VisionPersistent_t vPersistent;
+	uint32_t			CSF;
+	uint32_t			CPD; // CSF_***/CPD_*** bit-flags
 
 } clientPersistant_t;
 
@@ -1365,6 +1367,7 @@ void SendScoreboardMessageToAllClients( void );
 const char *G_GetStringEdString(char *refSection, char *refName);
 // VISION:
 void CVU_HeadSlide( void );
+void CVU_Ledge( void );
 
 //
 // g_client.c

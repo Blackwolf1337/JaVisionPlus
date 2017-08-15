@@ -553,6 +553,11 @@ extern	pmove_t		*pm;
 #define SETANIM_FLAG_HOLD		2//Set the new timer
 #define SETANIM_FLAG_RESTART	4//Allow restarting the anim if playing the same one (weapon fires)
 #define SETANIM_FLAG_HOLDLESS	8//Set the new timer
+// VISION:
+#define SETANIM_FLAG_PACE		16//acts like a SETANIM_FLAG_RESTART but only restarts if the animation is over.
+
+qboolean BG_InLedgeMove(int anim);
+qboolean In_LedgeIdle(int anim);
 
 
 // if a full pmove isn't done on the client, you can just update the angles

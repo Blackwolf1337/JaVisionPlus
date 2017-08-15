@@ -39,6 +39,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 // VISION:
 #include "jp_cinfo.h"
+#include "jp_csflags.h"
 
 #define MAX_WEAPON_CHARGE_TIME 5000
 
@@ -680,7 +681,6 @@ void BG_VehicleTurnRateForSpeed( Vehicle_t *pVeh, float speed, float *mPitchOver
 		}
 	}
 }
-
 
 // Following couple things don't belong in the DLL namespace!
 #ifdef _GAME
@@ -1581,6 +1581,11 @@ static float BG_ForceWallJumpStrength( void )
 
 qboolean PM_AdjustAngleForWallJump( playerState_t *ps, usercmd_t *ucmd, qboolean doMove )
 {
+	// VISION:
+	if ( BG_InLedgeMove( ps->legsAnim ) ) {//Ledge movin'  Let the ledge move function handle it.
+		return qfalse;
+	}
+	
 	if ( ( ( BG_InReboundJump( ps->legsAnim ) || BG_InReboundHold( ps->legsAnim ) )
 			&& ( BG_InReboundJump( ps->torsoAnim ) || BG_InReboundHold( ps->torsoAnim ) ) )
 		|| (pm->ps->pm_flags&PMF_STUCK_TO_WALL) )
@@ -1754,6 +1759,358 @@ void PM_GrabWallForJump( int anim )
 	PM_AddEvent( EV_JUMP );//make sound for grab
 	pm->ps->pm_flags |= PMF_STUCK_TO_WALL;
 }
+
+
+//VISION:
+
+
+//The height level at which you grab ledges.  In terms of player origin
+#define LEDGEGRABMAXHEIGHT		70
+#define LEDGEGRABHEIGHT			52.4f
+#define LEDGEVERTOFFSET			LEDGEGRABHEIGHT
+#define LEDGEGRABMINHEIGHT		40
+
+//max distance you can be from the ledge for ledge grabbing to work
+#define LEDGEGRABDISTANCE		40
+
+//min distance you can be from the ledge for ledge grab to work
+#define LEDGEGRABMINDISTANCE	22
+
+//distance at which the animation grabs the ledge
+#define LEDGEHOROFFSET			22.3f
+
+// scan for for a ledge in the given direction
+static qboolean LedgeTrace(trace_t *trace, vec3_t *dir, float *lerpup, float *lerpfwd, float *lerpyaw) {
+	vec3_t traceTo, traceFrom, wallangles;
+
+	if (GetCPD(pm_entSelf, CPD_LEDGEGRAB) || !GetCInfo(CINFO_LEDGEGRAB)) {
+		return qfalse;
+	}
+
+	VectorMA(&pm->ps->origin, LEDGEGRABDISTANCE, dir, &traceTo);
+	VectorCopy(&pm->ps->origin, &traceFrom);
+
+	traceFrom[2] += LEDGEGRABMINHEIGHT;
+	traceTo[2] += LEDGEGRABMINHEIGHT;
+
+	pm->trace(trace, &traceFrom, NULL, NULL, &traceTo, pm->ps->clientNum, MASK_DEADSOLID);
+
+	if (trace->fraction < 1) {//hit a wall, pop into the wall and fire down to find top of wall
+		VectorMA(&trace->endpos, 0.5f, dir, &traceTo);
+
+		VectorCopy(&traceTo, &traceFrom);
+
+		traceFrom[2] += (LEDGEGRABMAXHEIGHT - LEDGEGRABMINHEIGHT);
+
+		pm->trace(trace, &traceFrom, NULL, NULL, &traceTo, pm->ps->clientNum, MASK_DEADSOLID);
+
+		if (trace->fraction == 1.0f || trace->startsolid)
+			return qfalse;
+	}
+
+	else {//ok,
+		VectorCopy(&traceTo, &traceFrom);
+		traceFrom[2] += (LEDGEGRABMAXHEIGHT - LEDGEGRABMINHEIGHT);
+
+		pm->trace(trace, &traceFrom, NULL, NULL, &traceTo, pm->ps->clientNum, MASK_DEADSOLID);
+
+		if (trace->fraction == 1.0f || trace->startsolid)
+			return qfalse;
+
+		//found something, let's try to find the top face.
+		VectorCopy(&trace->endpos, &traceFrom);
+		traceFrom[2]++;
+
+		pm->trace(trace, &traceFrom, NULL, NULL, &traceTo, pm->ps->clientNum, MASK_DEADSOLID);
+	}
+
+	//check to make sure we found a good top surface and go from there
+	vectoangles(&trace->plane.normal, &wallangles);
+
+	if (wallangles[0] > -45)
+		return qfalse; //no ledge or the ledge is too steep
+	else {
+		VectorCopy(&trace->endpos, &traceTo);
+		*lerpup = trace->endpos[2] - pm->ps->origin[2] - LEDGEVERTOFFSET;
+
+		VectorCopy(&pm->ps->origin, &traceFrom);
+		traceTo[2] -= 1;
+
+		traceFrom[2] = traceTo[2];
+
+		pm->trace(trace, &traceFrom, NULL, NULL, &traceTo, pm->ps->clientNum, MASK_DEADSOLID);
+
+		vectoangles(&trace->plane.normal, &wallangles);
+		if (trace->fraction == 1.0f || wallangles[0] > 20 || wallangles[0] < -20)
+			return qfalse;//no ledge or too steep of a ledge
+
+		*lerpfwd = Distance(&trace->endpos, &traceFrom) - LEDGEHOROFFSET;
+		*lerpyaw = vectoyaw(&trace->plane.normal) + 180;
+		return qtrue;
+	}
+}
+
+//check for ledge grab
+qboolean PM_CheckGrab(void) {
+	vec3_t checkDir, traceTo, fwdAngles;
+	trace_t	trace;
+	float lerpup = 0;
+	float lerpfwd = 0;
+	float lerpyaw = 0;
+	qboolean skipcmdtrace = qfalse;
+
+	if (pm->ps->groundEntityNum != ENTITYNUM_NONE) {//not in the air don't attempt a ledge grab
+		return qfalse;
+	}
+
+	if (pm->ps->pm_type == PM_JETPACK) {//don't do ledgegrab checks while using the jetpack
+		return qfalse;
+	}
+
+	if (GetCPD(pm_entSelf, CPD_LEDGEGRAB) || !GetCInfo(CINFO_LEDGEGRAB))
+		return qfalse;
+
+	if ( BG_InLedgeMove( pm->ps->legsAnim ) ||	//already on a ledge
+		pm->ps->pm_type == PM_SPECTATOR ||	//a spectator
+		BG_InSpecialJump(pm->ps->legsAnim) )	//in a special jump
+	{
+		return qfalse;
+	}
+
+	//try looking in front of us first
+	VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0.0f);
+	AngleVectors(&fwdAngles, &checkDir, NULL, NULL);
+
+	if (!VectorCompare(&pm->ps->velocity, &vec3_origin)) {//player is moving
+		if (LedgeTrace(&trace, &checkDir, &lerpup, &lerpfwd, &lerpyaw)) {
+			skipcmdtrace = qtrue;
+		}
+	}
+
+	if (!skipcmdtrace) {//no luck finding a ledge to grab based on movement.  Try looking for a ledge based on where the player is
+						//TRYING to go.
+		if (!pm->cmd.rightmove && !pm->cmd.forwardmove) {//no dice abort
+			return qfalse;
+		}
+		else {
+			if (pm->cmd.rightmove) {
+				if (pm->cmd.rightmove > 0) {
+					AngleVectors(&fwdAngles, NULL, &checkDir, NULL);
+					VectorNormalize(&checkDir);
+				}
+				else if (pm->cmd.rightmove < 0) {
+					AngleVectors(&fwdAngles, NULL, &checkDir, NULL);
+					VectorScale(&checkDir, -1, &checkDir);
+					VectorNormalize(&checkDir);
+				}
+			}
+			else if (pm->cmd.forwardmove > 0) {//already tried this direction.
+				return qfalse;
+			}
+			else if (pm->cmd.forwardmove < 0) {
+				AngleVectors(&fwdAngles, &checkDir, NULL, NULL);
+				VectorScale(&checkDir, -1, &checkDir);
+				VectorNormalize(&checkDir);
+			}
+
+			if (!LedgeTrace(&trace, &checkDir, &lerpup, &lerpfwd, &lerpyaw)) {//no dice
+				return qfalse;
+			}
+		}
+	}
+
+	VectorCopy(&pm->ps->origin, &traceTo);
+	VectorMA(&pm->ps->origin, lerpfwd, &checkDir, &traceTo);
+	traceTo[2] += lerpup;
+
+	//check to see if we can actually latch to that position.
+	pm->trace(&trace, &pm->ps->origin, &pm->mins, &pm->maxs, &traceTo, pm->ps->clientNum, MASK_PLAYERSOLID);
+	if (trace.fraction != 1 || trace.startsolid) {
+		return qfalse;
+	}
+
+	//turn to face wall
+	pm->ps->viewangles[1] = lerpyaw;
+	PM_SetPMViewAngle(pm->ps, &pm->ps->viewangles, &pm->cmd);
+	pm->cmd.angles[1] = ANGLE2SHORT(pm->ps->viewangles[1]) - pm->ps->delta_angles[1];
+
+
+	//We are clear to latch to the wall
+	pm->ps->saberHolstered = 2;
+	VectorCopy(&trace.endpos, &pm->ps->origin);
+	VectorCopy(&vec3_origin, &pm->ps->velocity);
+	PM_GrabWallForJump(BOTH_LEDGE_GRAB);
+	pm->ps->weaponTime = pm->ps->legsTimer;
+
+	return qtrue;
+}
+
+//lets go of a ledge
+static void BG_LetGoofLedge(playerState_t *ps) {
+	ps->pm_flags &= ~PMF_STUCK_TO_WALL;
+	ps->torsoTimer = 0;
+	ps->legsTimer = 0;
+}
+
+static void PM_SetVelocityforLedgeMove(playerState_t *ps, int anim) {
+	vec3_t fwdAngles, moveDir;
+	float animationpoint = BG_GetLegsAnimPoint(ps, pm_entSelf->localAnimIndex);
+
+	switch (anim) {
+	case BOTH_LEDGE_GRAB:
+	case BOTH_LEDGE_HOLD:
+		VectorClear(&ps->velocity);
+		return;
+
+	case BOTH_LEDGE_LEFT:
+		if (animationpoint > .333f && animationpoint < .666f) {
+			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
+			AngleVectors(&fwdAngles, NULL, &moveDir, NULL);
+			VectorScale(&moveDir, -30, &moveDir);
+			VectorCopy(&moveDir, &ps->velocity);
+		}
+		else
+			VectorClear(&ps->velocity);
+		break;
+
+	case BOTH_LEDGE_RIGHT:
+		if (animationpoint > .333f && animationpoint < .666f) {
+			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
+			AngleVectors(&fwdAngles, NULL, &moveDir, NULL);
+			VectorScale(&moveDir, 30, &moveDir);
+			VectorCopy(&moveDir, &ps->velocity);
+		}
+		else
+			VectorClear(&ps->velocity);
+		break;
+
+	case BOTH_LEDGE_MERCPULL:
+		if (animationpoint > .8f && animationpoint < .925f) {
+			ps->velocity[0] = 0;
+			ps->velocity[1] = 0;
+			ps->velocity[2] = 77;//192;//154;
+		}
+		else if (animationpoint > .7f && animationpoint < .75f) {
+			ps->velocity[0] = 0;
+			ps->velocity[1] = 0;
+			ps->velocity[2] = 16;//128;//26;
+		}
+		else if (animationpoint > .375f && animationpoint < .7f) {
+			ps->velocity[0] = 0;
+			ps->velocity[1] = 0;
+			ps->velocity[2] = 70;//96;//140;
+		}
+		else if (animationpoint < .375f) {
+			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
+			AngleVectors(&fwdAngles, &moveDir, NULL, NULL);
+			VectorScale(&moveDir, 70, &moveDir);
+			VectorCopy(&moveDir, &ps->velocity);
+		}
+		else
+			VectorClear(&ps->velocity);
+		break;
+
+	default:
+		VectorClear(&ps->velocity);
+		return;
+	}
+}
+
+//Switch to this animation and keep repeating this animation while updating its timers
+#define	AFLAG_PACE (SETANIM_FLAG_OVERRIDE|SETANIM_FLAG_HOLD|SETANIM_FLAG_HOLDLESS|SETANIM_FLAG_PACE)
+
+static void PM_AdjustAngleForWallGrap(playerState_t *ps, usercmd_t *ucmd) {
+	if ((ps->pm_flags & PMF_STUCK_TO_WALL) && BG_InLedgeMove(ps->legsAnim)) {
+		// still holding onto the ledge stick our view to the wall angles
+		if (ps->legsAnim != BOTH_LEDGE_MERCPULL) {
+			vec3_t traceTo, traceFrom, fwd, fwdAngles;
+			trace_t	trace;
+
+			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
+			AngleVectors(&fwdAngles, &fwd, NULL, NULL);
+			VectorNormalize(&fwd);
+
+			VectorCopy(&ps->origin, &traceFrom);
+			traceFrom[2] += LEDGEGRABHEIGHT - 1;
+
+			VectorMA(&traceFrom, LEDGEGRABDISTANCE, &fwd, &traceTo);
+
+			pm->trace(&trace, &traceFrom, NULL, NULL, &traceTo, ps->clientNum, MASK_SOLID);
+
+			if (trace.fraction == 1) {
+				// that's not good, we lost the ledge so let go.
+				BG_LetGoofLedge(ps);
+				return;
+			}
+
+			// lock the view viewangles
+			ps->viewangles[1] = vectoyaw(&trace.plane.normal) + 180;
+			//	PM_SetPMViewAngle( ps, ps->viewangles, ucmd );
+			//	ucmd->angles.yaw = ANGLE2SHORT( ps->viewangles.yaw ) - ps->delta_angles.yaw;
+		}
+		else {
+			// lock viewangles
+			//	PM_SetPMViewAngle( ps, ps->viewangles, ucmd );
+			//	ucmd->angles.yaw = ANGLE2SHORT( ps->viewangles.yaw ) - ps->delta_angles.yaw;
+		}
+		ucmd->angles[1] = ANGLE2SHORT(ps->viewangles[1]) - ps->delta_angles[1];
+
+		//	if ( ps->legsTimer < 0 ) {
+		if (ps->legsTimer <= 50) {
+			// Try switching to idle
+			// pull up done, bail.
+			if (ps->legsAnim == BOTH_LEDGE_MERCPULL)
+				ps->pm_flags &= ~PMF_STUCK_TO_WALL;
+			else {
+				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_HOLD, SETANIM_FLAG_OVERRIDE, 0);
+				ps->torsoTimer = 100;//500;
+				ps->legsTimer = 100;//500;
+									//hold weapontime so people can't do attacks while in ledgegrab
+				ps->weaponTime = ps->legsTimer;
+			}
+		}
+		else if (ps->legsAnim == BOTH_LEDGE_HOLD) {
+			if (ucmd->rightmove) {
+				// trying to move left/right
+				if (ucmd->rightmove < 0) {
+					// shimmy left
+					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_LEFT, AFLAG_PACE, 0);
+					// hold weapontime so people can't do attacks while in ledgegrab
+					ps->weaponTime = ps->legsTimer;
+				}
+				else {
+					// shimmy right
+					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_RIGHT, AFLAG_PACE, 0);
+					// hold weapontime so people can't do attacks while in ledgegrab
+					ps->weaponTime = ps->legsTimer;
+				}
+			}
+			// letting go
+			else if (ucmd->forwardmove < 0)
+				BG_LetGoofLedge(ps);
+			else if (ucmd->forwardmove > 0) {
+				// Pull up
+				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_MERCPULL, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD | SETANIM_FLAG_HOLDLESS, 0);
+				// hold weapontime so people can't do attacks while in ledgegrab
+				ps->weaponTime = ps->legsTimer;
+			}
+			else {
+				// keep holding on
+				ps->torsoTimer = 100;//500;
+				ps->legsTimer = 100;//500;
+									// hold weapontime so people can't do attacks while in ledgegrab
+				ps->weaponTime = ps->legsTimer;
+			}
+		}
+
+		//set movement velocity
+		PM_SetVelocityforLedgeMove(ps, ps->legsAnim);
+
+		//clear movement commands to prevent movement
+		ucmd->rightmove = ucmd->upmove = ucmd->forwardmove = 0;
+	}
+}
+
 
 /*
 =============
@@ -2586,6 +2943,7 @@ static qboolean PM_CheckJump( void )
 					&& BG_CanUseFPNow(pm->gametype, pm->ps, pm->cmd.serverTime, FP_LEVITATION)
 					&& (pm->ps->origin[2]-pm->ps->fd.forceJumpZStart) < (forceJumpHeightMax[FORCE_LEVEL_3]-(BG_ForceWallJumpStrength()/2.0f)) //can fit at least one more wall jump in (yes, using "magic numbers"... for now)
 					//&& (pm->ps->legsAnim == BOTH_JUMP1 || pm->ps->legsAnim == BOTH_INAIR1 ) )//not in a flip or spin or anything
+					&& !PM_CheckGrab()
 					)
 			{//see if we're pushing at a wall and jump off it if so
 				if ( allowWallGrabs )
@@ -8931,7 +9289,7 @@ void BG_UpdateLookAngles( int lookingDebounceTime, vec3_t lastHeadAngles, int ti
 }
 
 //for setting visual look (headturn) angles
-static void BG_G2ClientNeckAngles( void *ghoul2, int time, const vec3_t lookAngles, vec3_t headAngles, vec3_t neckAngles, vec3_t thoracicAngles, vec3_t headClampMinAngles, vec3_t headClampMaxAngles )
+static void BG_G2ClientNeckAngles( void *ghoul2, int time, const vec3_t lookAngles, vec3_t headAngles, vec3_t neckAngles, vec3_t thoracicAngles, vec3_t headClampMinAngles, vec3_t headClampMaxAngles, entityState_t *cent  )
 {
 	vec3_t	lA;
 	VectorCopy( lookAngles, lA );
@@ -8964,9 +9322,12 @@ static void BG_G2ClientNeckAngles( void *ghoul2, int time, const vec3_t lookAngl
 	}
 
 	//split it up between the neck and cranium
-	if ( thoracicAngles[PITCH] )
-	{//already been set above, blend them
-		thoracicAngles[PITCH] = (thoracicAngles[PITCH] + (lA[PITCH] * 0.4)) * 0.5f;
+	// VISION:
+	if ( BG_InLedgeMove(cent->legsAnim) ) {//lock arm parent bone to animation
+		thoracicAngles[PITCH] = 0;
+	}
+	else if ( thoracicAngles[PITCH] ) {//already been set above, blend them
+		thoracicAngles[PITCH] = (thoracicAngles[PITCH] + (lA[PITCH] * 0.4f)) * 0.5f;
 	}
 	else
 	{
@@ -8989,14 +9350,20 @@ static void BG_G2ClientNeckAngles( void *ghoul2, int time, const vec3_t lookAngl
 		thoracicAngles[ROLL] = lA[ROLL] * 0.1;
 	}
 
-	neckAngles[PITCH] = lA[PITCH] * 0.2f;
-	neckAngles[YAW] = lA[YAW] * 0.3f;
-	neckAngles[ROLL] = lA[ROLL] * 0.3f;
+	// VISION:
+	if (BG_InLedgeMove(cent->legsAnim)) {//lock the neckAngles to prevent the head from acting weird
+		VectorClear(neckAngles);
+		VectorClear(headAngles);
+	}
+	else {
+		neckAngles[PITCH] = lA[PITCH] * 0.2f;
+		neckAngles[YAW] = lA[YAW] * 0.3f;
+		neckAngles[ROLL] = lA[ROLL] * 0.3f;
 
-	headAngles[PITCH] = lA[PITCH] * 0.4;
-	headAngles[YAW] = lA[YAW] * 0.6;
-	headAngles[ROLL] = lA[ROLL] * 0.6;
-
+		headAngles[PITCH] = lA[PITCH] * 0.4;
+		headAngles[YAW] = lA[YAW] * 0.6;
+		headAngles[ROLL] = lA[ROLL] * 0.6;
+	}
 	/* //non-applicable SP code
 	if ( G_RidingVehicle( cent->gent ) )// && type == VH_SPEEDER ?
 	{//aim torso forward too
@@ -9120,6 +9487,18 @@ static void BG_G2ClientSpineAngles( void *ghoul2, int motionBolt, vec3_t cent_le
 
 	//distribute the angles differently up the spine
 	//NOTE: each of these distributions must add up to 1.0f
+	//VISION:
+	if (BG_InLedgeMove(cent->legsAnim)) {//lock spine to animation
+		thoracicAngles[PITCH] = 0;
+		llAngles[PITCH] = 0;
+		ulAngles[PITCH] = 0;
+	}
+	else {
+		thoracicAngles[PITCH] = viewAngles[PITCH] *0.20f;
+		llAngles[PITCH] = viewAngles[PITCH] *0.40f;
+		ulAngles[PITCH] = viewAngles[PITCH] *0.40f;
+	}
+
 	thoracicAngles[PITCH] = viewAngles[PITCH]*0.20f;
 	llAngles[PITCH] = viewAngles[PITCH]*0.40f;
 	ulAngles[PITCH] = viewAngles[PITCH]*0.40f;
@@ -9575,7 +9954,7 @@ void BG_G2PlayerAngles(void *ghoul2, int motionBolt, entityState_t *cent, int ti
 
 	BG_UpdateLookAngles(lookTime, lastHeadAngles, time, lookAngles, lookSpeed, -50.0f, 50.0f, -70.0f, 70.0f, -30.0f, 30.0f);
 
-	BG_G2ClientNeckAngles(ghoul2, time, lookAngles, headAngles, neckAngles, thoracicAngles, headClampMinAngles, headClampMaxAngles);
+	BG_G2ClientNeckAngles(ghoul2, time, lookAngles, headAngles, neckAngles, thoracicAngles, headClampMinAngles, headClampMaxAngles, cent );
 
 #ifdef BONE_BASED_LEG_ANGLES
 	{
@@ -10751,6 +11130,7 @@ void PmoveSingle (pmove_t *pmove) {
 	PM_AdjustAngleForWallJump( pm->ps, &pm->cmd, qtrue );
 	PM_AdjustAngleForWallRunUp( pm->ps, &pm->cmd, qtrue );
 	PM_AdjustAngleForWallRun( pm->ps, &pm->cmd, qtrue );
+	PM_AdjustAngleForWallGrap( pm->ps, &pm->cmd );
 
 	if (pm->ps->saberMove == LS_A_JUMP_T__B_ || pm->ps->saberMove == LS_A_LUNGE ||
 		pm->ps->saberMove == LS_A_BACK_CR || pm->ps->saberMove == LS_A_BACK ||

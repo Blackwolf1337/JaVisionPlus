@@ -139,6 +139,10 @@ void CVU_HeadSlide( void ) {
 	SetCInfo( v_slideOnHead.integer, CINFO_HEADSLIDE );
 }
 
+void CVU_Ledge( void ) {
+	SetCInfo( v_allowLedgeGrab.integer, CINFO_LEDGEGRAB );
+}
+
 sharedBuffer_t gSharedBuffer;
 
 void WP_SaberLoadParms( void );
@@ -3275,7 +3279,7 @@ void G_RunFrame( int levelTime ) {
 #define JETPACK_REFUEL_RATE		150 //seems fair
 			if (ent->client->jetPackOn)
 			{ //using jetpack, drain fuel
-				if (ent->client->jetPackDebReduce < level.time)
+				if (ent->client->jetPackDebReduce < level.time && !(v_allowJetpackUnlimitedFuel.integer))
 				{
 					if (ent->client->pers.cmd.upmove > 0)
 					{ //take more if they're thrusting

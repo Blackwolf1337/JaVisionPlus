@@ -1526,11 +1526,12 @@ void ForceProtect( gentity_t *self )
 	}
 
 	// Make sure to turn off Force Rage and Force Absorb.
-	if (self->client->ps.fd.forcePowersActive & (1 << FP_RAGE) )
+	//VISION:
+	if (self->client->ps.fd.forcePowersActive & (1 << FP_RAGE) && !(v_allowForceCombo.uinteger & 2))
 	{
 		WP_ForcePowerStop( self, FP_RAGE );
 	}
-	if (self->client->ps.fd.forcePowersActive & (1 << FP_ABSORB) )
+	if (self->client->ps.fd.forcePowersActive & (1 << FP_ABSORB) && !(v_allowForceCombo.uinteger & 1))
 	{
 		WP_ForcePowerStop( self, FP_ABSORB );
 	}
