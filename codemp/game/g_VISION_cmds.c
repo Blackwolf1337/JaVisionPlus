@@ -571,7 +571,8 @@ static void AM_Info_f( gentity_t *ent ) {
 		Q_PrintBuffer(&pb, "Try 'aminfo <category>' for more detailed information\nCategories: ^1");
 
 		// print all categories
-		for (i = 0; i < numAminfoSettings; i++) {
+		for (i = 0; i < numAminfoSettings; i++) 
+		{
 			if (i) {
 				Q_PrintBuffer(&pb, "^7, ^1");
 			}
@@ -668,6 +669,35 @@ static void AM_KillVote_f( gentity_t *ent ) {
 }
 
 // log in using user + pass
+
+static void AM_SetLoginEffect( gentity_t *ent ) {
+	
+	if ( !ent->client->pers.account ) 
+		return;
+
+	switch ( ent->client->pers.account->v_loginEffect )
+	{
+	case 1:
+		ent->client->pers.vPersistent.v_loginEffect = PW_FORCE_ENLIGHTENED_DARK;
+		break;
+	case 2:
+		ent->client->pers.vPersistent.v_loginEffect = PW_FORCE_ENLIGHTENED_LIGHT;
+		break;
+	case 3:
+		ent->client->pers.vPersistent.v_loginEffect = PW_SHIELDHIT;
+		break;
+	case 4:
+		ent->client->pers.vPersistent.v_loginEffect = PW_FORCE_BOON;
+		break;
+	default:
+		ent->client->pers.vPersistent.v_loginEffect = 0;
+		return;
+	}
+
+	ent->client->ps.powerups[ent->client->pers.vPersistent.v_loginEffect] = level.time + (v_adminEffectDuration.integer * 1000);
+
+}
+
 void AM_Login( gentity_t *ent ) {
 	char argUser[32] = { 0 }, argPass[32] = { 0 };
 	account_t *account = NULL, *current = NULL;
@@ -697,7 +727,7 @@ void AM_Login( gentity_t *ent ) {
 		const char *loginMsg = ent->client->pers.account->v_loginMsg;
 		char *sendMsg = NULL;
 
-		//AM_SetLoginEffect( ent );
+		AM_SetLoginEffect( ent );
 		
 		if ( !VALIDSTRING( loginMsg ) ) {
 			trap->SendServerCommand( ent->s.number, "print \"You have logged in\n\"" );
@@ -1109,7 +1139,7 @@ static void AM_Slay_f(gentity_t *ent) {
 	int targetClient;
 	gentity_t *targetEnt = NULL;
 
-	if (trap->Argc() < 2) {
+	if ( trap->Argc() < 2 ) {
 		trap->SendServerCommand( ent->s.number, "print \"Usage: ^1amslay <client>\n\"" );
 		return;
 	}
@@ -1129,8 +1159,8 @@ static void AM_Slay_f(gentity_t *ent) {
 
 			Cmd_Kill_f( e );
 
-			if (v_slaydismember.integer)
-				AM_Dismember(targetEnt);
+			if ( v_slaydismember.integer )
+				AM_Dismember( targetEnt );
 		}
 		//Draw string
 		return;
@@ -1146,7 +1176,7 @@ static void AM_Slay_f(gentity_t *ent) {
 		return;
 	}*/
 
-	Cmd_Kill_f(targetEnt);
+	Cmd_Kill_f( targetEnt );
 
 	if ( v_slaydismember.integer )
 		AM_Dismember( targetEnt );
@@ -1205,7 +1235,8 @@ static void AM_Sleep_f( gentity_t *ent ) {
 		qboolean allSlept = qtrue;
 		int i;
 		gentity_t *e;
-		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) {
+		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) 
+		{
 			if ( !e->inuse || e->client->pers.connected == CON_DISCONNECTED ) {
 				continue;
 			}
@@ -1220,7 +1251,8 @@ static void AM_Sleep_f( gentity_t *ent ) {
 			return;
 		}
 
-		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) {
+		for ( i = 0, e = g_entities; i < level.maxclients; i++, e++ ) 
+		{
 			if ( !e->inuse || e->client->pers.connected == CON_DISCONNECTED ) {
 				continue;
 			}

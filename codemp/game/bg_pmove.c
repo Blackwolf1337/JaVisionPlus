@@ -37,6 +37,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 	#include "ui/ui_local.h"
 #endif
 
+// VISION:
+#include "jp_cinfo.h"
+
 #define MAX_WEAPON_CHARGE_TIME 5000
 
 #ifdef _GAME
@@ -51,9 +54,6 @@ extern saberInfo_t *BG_MySaber( int clientNum, int saberNum );
 
 pmove_t		*pm;
 pml_t		pml;
-
-//VISION:
-vmCvar_t v_slideOnHead;
 
 bgEntity_t *pm_entSelf = NULL;
 bgEntity_t *pm_entVeh = NULL;
@@ -1070,7 +1070,7 @@ static void PM_Friction( void ) {
 	}
 	// VISION:
 	// If on a client then there is no friction
-	else if ( !(v_slideOnHead.uinteger & 1) && pm->ps->groundEntityNum < MAX_CLIENTS )
+	else if ( !( GetCInfo( CINFO_HEADSLIDE ) ) && pm->ps->groundEntityNum < MAX_CLIENTS )
 	{
 		drop = 0;
 	}
@@ -11010,12 +11010,10 @@ void PmoveSingle (pmove_t *pmove) {
 		pm_entSelf->s.NPC_class!=CLASS_VEHICLE&&
 		pm_entSelf->s.NPC_class!=CLASS_RANCOR&&
 		pm->ps->groundEntityNum < ENTITYNUM_WORLD &&
-		pm->ps->groundEntityNum >= MAX_CLIENTS &&
-		!(v_slideOnHead.uinteger & 2))
+		pm->ps->groundEntityNum >= MAX_CLIENTS )
 	{ //I am a player client, not riding on a vehicle, and potentially standing on an NPC
 		bgEntity_t *pEnt = PM_BGEntForNum(pm->ps->groundEntityNum);
 
-		//VISION:
 		if (pEnt && pEnt->s.eType == ET_NPC &&
 			pEnt->s.NPC_class != CLASS_VEHICLE) //don't bounce on vehicles
 		{ //this is actually an NPC, let's try to bounce of its head to make sure we can't just stand around on top of it.

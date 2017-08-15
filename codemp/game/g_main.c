@@ -28,6 +28,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "g_nav.h"
 #include "bg_saga.h"
 #include "b_local.h"
+// VISION:
+#include "jp_cinfo.h"
 
 level_locals_t	level;
 
@@ -120,6 +122,21 @@ void G_FindTeams( void ) {
 	}
 
 //	trap->Print ("%i teams with %i entities\n", c, c2);
+}
+
+// VISION:
+static void SetCInfo(int check, uint32_t bit) {
+	uint32_t cinfo = (unsigned)jp_cinfo.integer;
+
+	if ( check )	cinfo |= bit;
+	else			cinfo &= ~bit;
+
+	trap->Cvar_Set( "jp_cinfo", va( "%u", cinfo ) );
+	trap->Cvar_Update( &jp_cinfo );
+}
+
+void CVU_HeadSlide( void ) {
+	SetCInfo( v_slideOnHead.integer, CINFO_HEADSLIDE );
 }
 
 sharedBuffer_t gSharedBuffer;
@@ -3309,6 +3326,11 @@ void G_RunFrame( int levelTime ) {
 					ent->client->ps.cloakFuel++;
 					ent->client->cloakDebRecharge = level.time + CLOAK_REFUEL_RATE;
 				}
+			}
+
+			// VISION:
+			if ( ent->client->pers.vPersistent.v_loginEffect && ent->client->ps.powerups[ent->client->pers.vPersistent.v_loginEffect] <= level.time) {
+				ent->client->pers.vPersistent.v_loginEffect = 0;
 			}
 
 			if (level.gametype == GT_SIEGE &&

@@ -494,7 +494,7 @@ static void Svcmd_AccountAdd_f( void ) {
 	trap->Argv( 5, argEffect, sizeof( argEffect ) );
 	argMsg = ConcatArgs(6);
 
-	v_Account_Create( argUser, argPass, atoll( argPrivs ), argRank, argEffect, argMsg );
+	v_Account_Create( argUser, argPass, atoll( argPrivs ), argRank, atoi( argEffect ), argMsg );
 	v_Write_Binary( qfalse );
 }
 

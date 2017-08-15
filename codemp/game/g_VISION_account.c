@@ -35,7 +35,7 @@ const char trailer[6] = { FS, LF,  ETX,
 Author: Ja++, Raz0r(?)
 Desc..: Add an account (will be tweaked)
 */
-void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg ) {
+void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, int  *loginEffect, char *loginMsg ) {
 	account_t *account = NULL;
 
 	for ( account = accounts; account; account = account->next ) 
@@ -59,7 +59,8 @@ void v_Account_Create( char *user, char *password, uint64_t privileges, char *ra
 	Q_strncpyz( account->v_Password, password, sizeof( account->v_Password ) );
 	account->v_privileges = privileges;
 	Q_strncpyz( account->v_rank, rank, sizeof( account->v_rank ) );
-	Q_strncpyz( account->v_loginEffect, loginEffect, sizeof( account->v_loginEffect ) );
+	account->v_loginEffect = loginEffect;
+	//Q_strncpyz( account->v_loginEffect, loginEffect, sizeof( account->v_loginEffect ) );
 	Q_strncpyz( account->v_loginMsg, loginMsg, sizeof( account->v_loginMsg ) );
 	Q_strncpyz( account->v_additionalInfo, "none", sizeof( account->v_additionalInfo ) );
 	Q_strncpyz( account->v_banned, "0",  sizeof( account->v_banned ) );
@@ -225,14 +226,15 @@ void v_Read_Binary( qboolean silent ) {
 		accounts = account;
 		
 		if( !silent )
-			trap->Print( "%s %s %lld %s %s %s %s\n\tSIZE->%zu\n",	account->v_User, 
-																	account->v_Password,
-																	account->v_privileges,
-																	account->v_rank,
-																	account->v_loginMsg,
-																	account->v_additionalInfo,
-																	account->v_banned,
-																	account);
+			trap->Print( "%s %s %lld %s %d %s %s %s\n\tSIZE->%zu\n",	account->v_User, 
+																		account->v_Password,
+																		account->v_privileges,
+																		account->v_rank,
+																		account->v_loginEffect,
+																		account->v_loginMsg,
+																		account->v_additionalInfo,
+																		account->v_banned,
+																		account);
 	}
 
 	fclose( pfile );

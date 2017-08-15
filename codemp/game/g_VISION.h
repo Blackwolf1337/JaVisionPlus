@@ -154,7 +154,8 @@ typedef struct VisionPersistent_s {
 	qboolean merc; // are they merced?
 	qboolean icon; // icon enabled?
 	int renamedTime; // level.time they were renamed
-	
+	int v_loginEffect;
+
 					 //saving for amsaber
 	int forcePowerLevelSaber[NUM_FORCE_POWERS];
 
@@ -183,7 +184,7 @@ typedef struct account_s {
 	char		v_Password[32];	//memory allocation on the fly
 	uint64_t	v_privileges;	//hope i'll find another way around this.
 	char		v_rank[3];
-	char		v_loginEffect[3];
+	int			v_loginEffect;
 	char		v_loginMsg[128];
 	char		v_additionalInfo[MAX_STRING_CHARS];	//notes, reminders etc.
 	char		v_banned[2];		//if the account is unavailable
@@ -192,12 +193,13 @@ typedef struct account_s {
 } account_t;
 // ^- in gentity_s
 
+//This is temporary will be removed in future
 typedef struct accountBin_s {
 	char		bin_User[32];
 	char		bin_Password[32];
 	uint64_t	bin_privileges;
 	char		bin_rank[3];
-	char		bin_loginEffect[3];
+	int			bin_loginEffect;
 	char		bin_loginMsg[128];
 	char		bin_additionalInfo[MAX_STRING_CHARS];
 	char		bin_banned[2];

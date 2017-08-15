@@ -641,6 +641,15 @@ void TossClientItems( gentity_t *self ) {
 				if ( !item ) {
 					continue;
 				}
+
+				// VISION:
+				if ( ( self->client->pers.vPersistent.v_loginEffect == PW_FORCE_ENLIGHTENED_DARK || 
+					 self->client->pers.vPersistent.v_loginEffect == PW_FORCE_ENLIGHTENED_LIGHT || 
+					 self->client->pers.vPersistent.v_loginEffect == PW_FORCE_BOON ) && 
+					 self->client->pers.vPersistent.v_loginEffect == i ) {
+					 continue;
+				}
+
 				drop = Drop_Item( self, item, angle );
 				// decide how many seconds it has left
 				drop->count = ( self->client->ps.powerups[ i ] - level.time ) / 1000;

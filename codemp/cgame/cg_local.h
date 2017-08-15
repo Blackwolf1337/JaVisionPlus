@@ -1627,6 +1627,9 @@ typedef struct cgs_s {
 	int					numMiscStaticModels;
 	cg_staticmodel_t	miscStaticModels[MAX_STATIC_MODELS];
 
+	// VISION:
+	uint32_t	jp_cinfo;
+
 } cgs_t;
 
 typedef struct siegeExtended_s

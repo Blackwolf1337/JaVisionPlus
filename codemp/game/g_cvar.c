@@ -42,7 +42,7 @@ typedef struct cvarTable_s {
 	vmCvar_t	*vmCvar;
 	char		*cvarName;
 	char		*defaultString;
-	void		(*update)( void );
+	void		( *update )( void );
 	uint32_t	cvarFlags;
 	qboolean	trackChange; // announce if value changes
 } cvarTable_t;
