@@ -32,10 +32,10 @@
 #define CINFO_WEAPONROLL		(0x00100000u) // allow rolling with weapons
 #define CINFO_PRIVDUELWEAP		(0x00200000u) // allow other weapons in duels 
 											  // VISION: Prediction errors on Ja+ Clients
-#define CINFO_NOBUSYATK			(0x00400000u) // /-- ja++ bullshit
-#define CINFO_NOBUTTERFLY		(0x00800000u) // |
-#define CINFO_NOSTAB			(0x01000000u) // |
-#define CINFO_NODFA				(0x02000000u) // |
+#define CINFO_UNUSED10			(0x00400000u) 
+#define CINFO_UNUSED09			(0x00800000u) 
+#define CINFO_UNUSED08			(0x01000000u) 
+#define CINFO_UNUSED07			(0x02000000u) 
 #define CINFO_TOGGLESPECIALATK	(0x04000000u) // ^ allow toggling of these
 #define CINFO_UNUSED05			(0x08000000u)
 #define CINFO_UNUSED04			(0x10000000u)
