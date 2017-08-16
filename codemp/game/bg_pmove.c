@@ -9499,10 +9499,6 @@ static void BG_G2ClientSpineAngles( void *ghoul2, int motionBolt, vec3_t cent_le
 		ulAngles[PITCH] = viewAngles[PITCH] *0.40f;
 	}
 
-	thoracicAngles[PITCH] = viewAngles[PITCH]*0.20f;
-	llAngles[PITCH] = viewAngles[PITCH]*0.40f;
-	ulAngles[PITCH] = viewAngles[PITCH]*0.40f;
-
 	thoracicAngles[YAW] = viewAngles[YAW]*0.20f;
 	ulAngles[YAW] = viewAngles[YAW]*0.35f;
 	llAngles[YAW] = viewAngles[YAW]*0.45f;
