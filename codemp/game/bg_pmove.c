@@ -1735,6 +1735,190 @@ qboolean PM_AdjustAngleForWallJump( playerState_t *ps, usercmd_t *ucmd, qboolean
 	return qfalse;
 }
 
+//VISION:
+
+//The height level at which you grab ledges.  In terms of player origin
+#define LEDGEGRABMAXHEIGHT		70
+#define LEDGEGRABHEIGHT			52.4f
+#define LEDGEVERTOFFSET			LEDGEGRABHEIGHT
+#define LEDGEGRABMINHEIGHT		40
+
+//max distance you can be from the ledge for ledge grabbing to work
+#define LEDGEGRABDISTANCE		40
+
+//min distance you can be from the ledge for ledge grab to work
+#define LEDGEGRABMINDISTANCE	22
+
+//distance at which the animation grabs the ledge
+#define LEDGEHOROFFSET			22.3f
+
+//lets go of a ledge
+static void BG_LetGoofLedge(playerState_t *ps) {
+	ps->pm_flags &= ~PMF_STUCK_TO_WALL;
+	ps->torsoTimer = 0;
+	ps->legsTimer = 0;
+}
+
+static void PM_SetVelocityforLedgeMove(playerState_t *ps, int anim) {
+	vec3_t fwdAngles, moveDir;
+	float animationpoint = BG_GetLegsAnimPoint(ps, pm_entSelf->localAnimIndex);
+
+	switch (anim) {
+	case BOTH_LEDGE_GRAB:
+	case BOTH_LEDGE_HOLD:
+		VectorClear(&ps->velocity);
+		return;
+
+	case BOTH_LEDGE_LEFT:
+		if (animationpoint > .333f && animationpoint < .666f) {
+			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
+			AngleVectors(&fwdAngles, NULL, &moveDir, NULL);
+			VectorScale(&moveDir, -30, &moveDir);
+			VectorCopy(&moveDir, &ps->velocity);
+		}
+		else
+			VectorClear(&ps->velocity);
+		break;
+
+	case BOTH_LEDGE_RIGHT:
+		if (animationpoint > .333f && animationpoint < .666f) {
+			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
+			AngleVectors(&fwdAngles, NULL, &moveDir, NULL);
+			VectorScale(&moveDir, 30, &moveDir);
+			VectorCopy(&moveDir, &ps->velocity);
+		}
+		else
+			VectorClear(&ps->velocity);
+		break;
+
+	case BOTH_LEDGE_MERCPULL:
+		if (animationpoint > .8f && animationpoint < .925f) {
+			ps->velocity[0] = 0;
+			ps->velocity[1] = 0;
+			ps->velocity[2] = 77;//192;//154;
+		}
+		else if (animationpoint > .7f && animationpoint < .75f) {
+			ps->velocity[0] = 0;
+			ps->velocity[1] = 0;
+			ps->velocity[2] = 16;//128;//26;
+		}
+		else if (animationpoint > .375f && animationpoint < .7f) {
+			ps->velocity[0] = 0;
+			ps->velocity[1] = 0;
+			ps->velocity[2] = 70;//96;//140;
+		}
+		else if (animationpoint < .375f) {
+			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
+			AngleVectors(&fwdAngles, &moveDir, NULL, NULL);
+			VectorScale(&moveDir, 70, &moveDir);
+			VectorCopy(&moveDir, &ps->velocity);
+		}
+		else
+			VectorClear(&ps->velocity);
+		break;
+
+	default:
+		VectorClear(&ps->velocity);
+		return;
+	}
+}
+
+
+//Switch to this animation and keep repeating this animation while updating its timers
+#define	AFLAG_PACE (SETANIM_FLAG_OVERRIDE|SETANIM_FLAG_HOLD|SETANIM_FLAG_HOLDLESS|SETANIM_FLAG_PACE)
+
+static void PM_AdjustAngleForWallGrap(playerState_t *ps, usercmd_t *ucmd) {
+	if ((ps->pm_flags & PMF_STUCK_TO_WALL) && BG_InLedgeMove(ps->legsAnim)) {
+		// still holding onto the ledge stick our view to the wall angles
+		if (ps->legsAnim != BOTH_LEDGE_MERCPULL) {
+			vec3_t traceTo, traceFrom, fwd, fwdAngles;
+			trace_t	trace;
+
+			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
+			AngleVectors(&fwdAngles, &fwd, NULL, NULL);
+			VectorNormalize(&fwd);
+
+			VectorCopy(&ps->origin, &traceFrom);
+			traceFrom[2] += LEDGEGRABHEIGHT - 1;
+
+			VectorMA(&traceFrom, LEDGEGRABDISTANCE, &fwd, &traceTo);
+
+			pm->trace(&trace, &traceFrom, NULL, NULL, &traceTo, ps->clientNum, MASK_SOLID);
+
+			if (trace.fraction == 1) {
+				// that's not good, we lost the ledge so let go.
+				BG_LetGoofLedge(ps);
+				return;
+			}
+
+			// lock the view viewangles
+			ps->viewangles[1] = vectoyaw(&trace.plane.normal) + 180;
+			//	PM_SetPMViewAngle( ps, ps->viewangles, ucmd );
+			//	ucmd->angles.yaw = ANGLE2SHORT( ps->viewangles.yaw ) - ps->delta_angles.yaw;
+		}
+		else {
+			// lock viewangles
+			//	PM_SetPMViewAngle( ps, ps->viewangles, ucmd );
+			//	ucmd->angles.yaw = ANGLE2SHORT( ps->viewangles.yaw ) - ps->delta_angles.yaw;
+		}
+		ucmd->angles[1] = ANGLE2SHORT(ps->viewangles[1]) - ps->delta_angles[1];
+
+		//	if ( ps->legsTimer < 0 ) {
+		if (ps->legsTimer <= 50) {
+			// Try switching to idle
+			// pull up done, bail.
+			if (ps->legsAnim == BOTH_LEDGE_MERCPULL)
+				ps->pm_flags &= ~PMF_STUCK_TO_WALL;
+			else {
+				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_HOLD, SETANIM_FLAG_OVERRIDE, 0);
+				ps->torsoTimer = 100;//500;
+				ps->legsTimer = 100;//500;
+									//hold weapontime so people can't do attacks while in ledgegrab
+				ps->weaponTime = ps->legsTimer;
+			}
+		}
+		else if (ps->legsAnim == BOTH_LEDGE_HOLD) {
+			if (ucmd->rightmove) {
+				// trying to move left/right
+				if (ucmd->rightmove < 0) {
+					// shimmy left
+					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_LEFT, AFLAG_PACE, 0);
+					// hold weapontime so people can't do attacks while in ledgegrab
+					ps->weaponTime = ps->legsTimer;
+				}
+				else {
+					// shimmy right
+					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_RIGHT, AFLAG_PACE, 0);
+					// hold weapontime so people can't do attacks while in ledgegrab
+					ps->weaponTime = ps->legsTimer;
+				}
+			}
+			// letting go
+			else if (ucmd->forwardmove < 0)
+				BG_LetGoofLedge(ps);
+			else if (ucmd->forwardmove > 0) {
+				// Pull up
+				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_MERCPULL, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD | SETANIM_FLAG_HOLDLESS, 0);
+				// hold weapontime so people can't do attacks while in ledgegrab
+				ps->weaponTime = ps->legsTimer;
+			}
+			else {
+				// keep holding on
+				ps->torsoTimer = 100;//500;
+				ps->legsTimer = 100;//500;
+									// hold weapontime so people can't do attacks while in ledgegrab
+				ps->weaponTime = ps->legsTimer;
+			}
+		}
+
+		//set movement velocity
+		PM_SetVelocityforLedgeMove(ps, ps->legsAnim);
+
+		//clear movement commands to prevent movement
+		ucmd->rightmove = ucmd->upmove = ucmd->forwardmove = 0;
+	}
+}
+
 //Set the height for when a force jump was started. If it's 0, nuge it up (slight hack to prevent holding jump over slopes)
 void PM_SetForceJumpZStart(float value)
 {
@@ -1753,31 +1937,13 @@ float forceJumpHeightMax[NUM_FORCE_POWER_LEVELS] =
 	418//(384+stepheight(18)+crouchdiff(24) = 426)
 };
 
-void PM_GrabWallForJump( int anim )
+// VISION:
+void PM_GrabWallForJump(int anim)
 {//NOTE!!! assumes an appropriate anim is being passed in!!!
-	PM_SetAnim( SETANIM_BOTH, anim, SETANIM_FLAG_RESTART|SETANIM_FLAG_OVERRIDE|SETANIM_FLAG_HOLD );
-	PM_AddEvent( EV_JUMP );//make sound for grab
+	PM_SetAnim(SETANIM_BOTH, anim, SETANIM_FLAG_RESTART | SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD);
+	PM_AddEvent(EV_JUMP);//make sound for grab
 	pm->ps->pm_flags |= PMF_STUCK_TO_WALL;
 }
-
-
-//VISION:
-
-
-//The height level at which you grab ledges.  In terms of player origin
-#define LEDGEGRABMAXHEIGHT		70
-#define LEDGEGRABHEIGHT			52.4f
-#define LEDGEVERTOFFSET			LEDGEGRABHEIGHT
-#define LEDGEGRABMINHEIGHT		40
-
-//max distance you can be from the ledge for ledge grabbing to work
-#define LEDGEGRABDISTANCE		40
-
-//min distance you can be from the ledge for ledge grab to work
-#define LEDGEGRABMINDISTANCE	22
-
-//distance at which the animation grabs the ledge
-#define LEDGEHOROFFSET			22.3f
 
 // scan for for a ledge in the given direction
 static qboolean LedgeTrace(trace_t *trace, vec3_t *dir, float *lerpup, float *lerpfwd, float *lerpyaw) {
@@ -1939,178 +2105,11 @@ qboolean PM_CheckGrab(void) {
 	pm->ps->saberHolstered = 2;
 	VectorCopy(&trace.endpos, &pm->ps->origin);
 	VectorCopy(&vec3_origin, &pm->ps->velocity);
-	PM_GrabWallForJump(BOTH_LEDGE_GRAB);
+	PM_GrabWallForJump( BOTH_LEDGE_GRAB );
 	pm->ps->weaponTime = pm->ps->legsTimer;
 
 	return qtrue;
 }
-
-//lets go of a ledge
-static void BG_LetGoofLedge(playerState_t *ps) {
-	ps->pm_flags &= ~PMF_STUCK_TO_WALL;
-	ps->torsoTimer = 0;
-	ps->legsTimer = 0;
-}
-
-static void PM_SetVelocityforLedgeMove(playerState_t *ps, int anim) {
-	vec3_t fwdAngles, moveDir;
-	float animationpoint = BG_GetLegsAnimPoint(ps, pm_entSelf->localAnimIndex);
-
-	switch (anim) {
-	case BOTH_LEDGE_GRAB:
-	case BOTH_LEDGE_HOLD:
-		VectorClear(&ps->velocity);
-		return;
-
-	case BOTH_LEDGE_LEFT:
-		if (animationpoint > .333f && animationpoint < .666f) {
-			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
-			AngleVectors(&fwdAngles, NULL, &moveDir, NULL);
-			VectorScale(&moveDir, -30, &moveDir);
-			VectorCopy(&moveDir, &ps->velocity);
-		}
-		else
-			VectorClear(&ps->velocity);
-		break;
-
-	case BOTH_LEDGE_RIGHT:
-		if (animationpoint > .333f && animationpoint < .666f) {
-			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
-			AngleVectors(&fwdAngles, NULL, &moveDir, NULL);
-			VectorScale(&moveDir, 30, &moveDir);
-			VectorCopy(&moveDir, &ps->velocity);
-		}
-		else
-			VectorClear(&ps->velocity);
-		break;
-
-	case BOTH_LEDGE_MERCPULL:
-		if (animationpoint > .8f && animationpoint < .925f) {
-			ps->velocity[0] = 0;
-			ps->velocity[1] = 0;
-			ps->velocity[2] = 77;//192;//154;
-		}
-		else if (animationpoint > .7f && animationpoint < .75f) {
-			ps->velocity[0] = 0;
-			ps->velocity[1] = 0;
-			ps->velocity[2] = 16;//128;//26;
-		}
-		else if (animationpoint > .375f && animationpoint < .7f) {
-			ps->velocity[0] = 0;
-			ps->velocity[1] = 0;
-			ps->velocity[2] = 70;//96;//140;
-		}
-		else if (animationpoint < .375f) {
-			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
-			AngleVectors(&fwdAngles, &moveDir, NULL, NULL);
-			VectorScale(&moveDir, 70, &moveDir);
-			VectorCopy(&moveDir, &ps->velocity);
-		}
-		else
-			VectorClear(&ps->velocity);
-		break;
-
-	default:
-		VectorClear(&ps->velocity);
-		return;
-	}
-}
-
-//Switch to this animation and keep repeating this animation while updating its timers
-#define	AFLAG_PACE (SETANIM_FLAG_OVERRIDE|SETANIM_FLAG_HOLD|SETANIM_FLAG_HOLDLESS|SETANIM_FLAG_PACE)
-
-static void PM_AdjustAngleForWallGrap(playerState_t *ps, usercmd_t *ucmd) {
-	if ((ps->pm_flags & PMF_STUCK_TO_WALL) && BG_InLedgeMove(ps->legsAnim)) {
-		// still holding onto the ledge stick our view to the wall angles
-		if (ps->legsAnim != BOTH_LEDGE_MERCPULL) {
-			vec3_t traceTo, traceFrom, fwd, fwdAngles;
-			trace_t	trace;
-
-			VectorSet(&fwdAngles, 0, pm->ps->viewangles[1], 0);
-			AngleVectors(&fwdAngles, &fwd, NULL, NULL);
-			VectorNormalize(&fwd);
-
-			VectorCopy(&ps->origin, &traceFrom);
-			traceFrom[2] += LEDGEGRABHEIGHT - 1;
-
-			VectorMA(&traceFrom, LEDGEGRABDISTANCE, &fwd, &traceTo);
-
-			pm->trace(&trace, &traceFrom, NULL, NULL, &traceTo, ps->clientNum, MASK_SOLID);
-
-			if (trace.fraction == 1) {
-				// that's not good, we lost the ledge so let go.
-				BG_LetGoofLedge(ps);
-				return;
-			}
-
-			// lock the view viewangles
-			ps->viewangles[1] = vectoyaw(&trace.plane.normal) + 180;
-			//	PM_SetPMViewAngle( ps, ps->viewangles, ucmd );
-			//	ucmd->angles.yaw = ANGLE2SHORT( ps->viewangles.yaw ) - ps->delta_angles.yaw;
-		}
-		else {
-			// lock viewangles
-			//	PM_SetPMViewAngle( ps, ps->viewangles, ucmd );
-			//	ucmd->angles.yaw = ANGLE2SHORT( ps->viewangles.yaw ) - ps->delta_angles.yaw;
-		}
-		ucmd->angles[1] = ANGLE2SHORT(ps->viewangles[1]) - ps->delta_angles[1];
-
-		//	if ( ps->legsTimer < 0 ) {
-		if (ps->legsTimer <= 50) {
-			// Try switching to idle
-			// pull up done, bail.
-			if (ps->legsAnim == BOTH_LEDGE_MERCPULL)
-				ps->pm_flags &= ~PMF_STUCK_TO_WALL;
-			else {
-				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_HOLD, SETANIM_FLAG_OVERRIDE, 0);
-				ps->torsoTimer = 100;//500;
-				ps->legsTimer = 100;//500;
-									//hold weapontime so people can't do attacks while in ledgegrab
-				ps->weaponTime = ps->legsTimer;
-			}
-		}
-		else if (ps->legsAnim == BOTH_LEDGE_HOLD) {
-			if (ucmd->rightmove) {
-				// trying to move left/right
-				if (ucmd->rightmove < 0) {
-					// shimmy left
-					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_LEFT, AFLAG_PACE, 0);
-					// hold weapontime so people can't do attacks while in ledgegrab
-					ps->weaponTime = ps->legsTimer;
-				}
-				else {
-					// shimmy right
-					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_RIGHT, AFLAG_PACE, 0);
-					// hold weapontime so people can't do attacks while in ledgegrab
-					ps->weaponTime = ps->legsTimer;
-				}
-			}
-			// letting go
-			else if (ucmd->forwardmove < 0)
-				BG_LetGoofLedge(ps);
-			else if (ucmd->forwardmove > 0) {
-				// Pull up
-				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_MERCPULL, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD | SETANIM_FLAG_HOLDLESS, 0);
-				// hold weapontime so people can't do attacks while in ledgegrab
-				ps->weaponTime = ps->legsTimer;
-			}
-			else {
-				// keep holding on
-				ps->torsoTimer = 100;//500;
-				ps->legsTimer = 100;//500;
-									// hold weapontime so people can't do attacks while in ledgegrab
-				ps->weaponTime = ps->legsTimer;
-			}
-		}
-
-		//set movement velocity
-		PM_SetVelocityforLedgeMove(ps, ps->legsAnim);
-
-		//clear movement commands to prevent movement
-		ucmd->rightmove = ucmd->upmove = ucmd->forwardmove = 0;
-	}
-}
-
 
 /*
 =============
