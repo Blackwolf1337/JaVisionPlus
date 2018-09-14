@@ -15,6 +15,8 @@ JaVision+ is licensed under GPLv2 as free software. You are free to use, modify 
 
 ## For players
 
+Project currently Paused.
+
 //
  
 **Linux Instructions**
