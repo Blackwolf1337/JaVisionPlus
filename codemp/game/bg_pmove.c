@@ -1870,7 +1870,7 @@ static void PM_AdjustAngleForWallGrap(playerState_t *ps, usercmd_t *ucmd) {
 			if (ps->legsAnim == BOTH_LEDGE_MERCPULL)
 				ps->pm_flags &= ~PMF_STUCK_TO_WALL;
 			else {
-				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_HOLD, SETANIM_FLAG_OVERRIDE, 0);
+				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_HOLD, SETANIM_FLAG_OVERRIDE);
 				ps->torsoTimer = 100;//500;
 				ps->legsTimer = 100;//500;
 									//hold weapontime so people can't do attacks while in ledgegrab
@@ -1882,13 +1882,13 @@ static void PM_AdjustAngleForWallGrap(playerState_t *ps, usercmd_t *ucmd) {
 				// trying to move left/right
 				if (ucmd->rightmove < 0) {
 					// shimmy left
-					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_LEFT, AFLAG_PACE, 0);
+					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_LEFT, AFLAG_PACE);
 					// hold weapontime so people can't do attacks while in ledgegrab
 					ps->weaponTime = ps->legsTimer;
 				}
 				else {
 					// shimmy right
-					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_RIGHT, AFLAG_PACE, 0);
+					PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_RIGHT, AFLAG_PACE);
 					// hold weapontime so people can't do attacks while in ledgegrab
 					ps->weaponTime = ps->legsTimer;
 				}
@@ -1898,7 +1898,7 @@ static void PM_AdjustAngleForWallGrap(playerState_t *ps, usercmd_t *ucmd) {
 				BG_LetGoofLedge(ps);
 			else if (ucmd->forwardmove > 0) {
 				// Pull up
-				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_MERCPULL, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD | SETANIM_FLAG_HOLDLESS, 0);
+				PM_SetAnim(SETANIM_BOTH, BOTH_LEDGE_MERCPULL, SETANIM_FLAG_OVERRIDE | SETANIM_FLAG_HOLD | SETANIM_FLAG_HOLDLESS);
 				// hold weapontime so people can't do attacks while in ledgegrab
 				ps->weaponTime = ps->legsTimer;
 			}

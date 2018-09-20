@@ -236,7 +236,7 @@ static struct amInfoSetting_s {
 };
 static const size_t numAminfoSettings = ARRAY_LEN(aminfoSettings);
 
-void v_Account_Create( char *user, char *password, uint64_t privileges, char *rank, char *loginEffect, char *loginMsg );	// Need> g_svcmds.c
+void v_Account_Create(char *user, char *password, uint64_t privileges, char *rank, int  *loginEffect, char *loginMsg);    // Need> g_svcmds.c
 int  v_Account_Delete( char *user );	// Need> g_svcmds.c
 qboolean v_HandleCommands( gentity_t *ent, const char *cmd );	// Need> g_cmds.c
 void v_Write_Binary( qboolean silent );	// Need> g_svcmds.c
